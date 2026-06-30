@@ -451,26 +451,35 @@ function renderAdditionCarryDemo(question) {
   const onesSum = aOnes + bOnes;
   const resultTens = Math.floor(question.answer / 10);
   const resultOnes = question.answer % 10;
+  const carryTens = Math.floor(onesSum / 10);
   return `
-    <div class="regroup-demo addition-demo">
-      <div class="demo-stage">
-        <div class="place-lane tens-lane">
-          <strong>十の位</strong>
-          <div class="lane-box">${renderTenBlocks(aTens + bTens)}<i class="ten-block carry-in"></i></div>
-        </div>
-        <div class="place-lane ones-lane">
-          <strong>一の位</strong>
-          <div class="lane-box ones-pile">
-            ${renderUnitBlocks(aOnes, "start")}
-            ${renderUnitBlocks(bOnes, "add")}
+    <div class="regroup-demo vertical-demo addition-demo">
+      <div class="vertical-board">
+        <div class="place-heading"></div>
+        <div class="place-heading tens-heading">十の位</div>
+        <div class="place-heading ones-heading">一の位</div>
+        ${renderVerticalNumberRow("上段", question.a, "top")}
+        ${renderVerticalNumberRow("中段", question.b, "middle")}
+        <div class="flow-row result-row addition-result">
+          <span class="flow-label">下段</span>
+          <div class="flow-cell tens-cell">
+            ${renderTenBlocks(aTens + bTens)}
+            ${renderFinalTenBlocks(carryTens, resultTens)}
+            <span class="carry-landing" aria-hidden="true">10こ</span>
+          </div>
+          <div class="flow-cell ones-cell">
+            ${renderUnitBlocks(aOnes, "drop-top")}
+            ${renderUnitBlocks(bOnes, "drop-middle")}
+            ${renderGroupedCarryUnits(Math.min(10, onesSum))}
+            ${renderUnitBlocks(resultOnes, "result")}
             ${renderMovingCarryGroup()}
           </div>
         </div>
       </div>
       <div class="demo-steps">
-        <span>1. 一の位: ${aOnes} + ${bOnes} = ${onesSum}</span>
-        <span>2. 10こを十の位へ動かす</span>
-        <span>3. 十の位は${resultTens}、一の位は${resultOnes}で ${question.answer}</span>
+        <span>1. 上段と中段を下段に集める</span>
+        <span>2. 一の位: ${aOnes} + ${bOnes} = ${onesSum}</span>
+        <span>3. 下段の一の位から10のまとまりを十の位へ動かして ${question.answer}</span>
       </div>
     </div>
   `;
@@ -483,26 +492,43 @@ function renderSubtractionBorrowDemo(question) {
   const onesAfterBorrow = onesBefore + 10;
   const resultTens = Math.floor(question.answer / 10);
   const resultOnes = question.answer % 10;
+  const borrowedResultOnes = Math.max(0, resultOnes - onesBefore);
   return `
-    <div class="regroup-demo subtraction-demo">
-      <div class="demo-stage">
-        <div class="place-lane tens-lane">
-          <strong>十の位</strong>
-          <div class="lane-box">${renderTenBlocks(Math.max(0, tensBefore - 1))}<i class="ten-block borrowed-ten"></i></div>
-        </div>
-        <div class="place-lane ones-lane">
-          <strong>一の位</strong>
-          <div class="lane-box ones-pile">
+    <div class="regroup-demo vertical-demo subtraction-demo">
+      <div class="vertical-board">
+        <div class="place-heading"></div>
+        <div class="place-heading tens-heading">十の位</div>
+        <div class="place-heading ones-heading">一の位</div>
+        <div class="flow-row top-row subtraction-top">
+          <span class="flow-label">上段</span>
+          <div class="flow-cell tens-cell">
+            ${renderTenBlocks(Math.max(0, tensBefore - 1))}
+            <i class="ten-block borrow-source"></i>
+          </div>
+          <div class="flow-cell ones-cell">
             ${renderUnitBlocks(onesBefore, "start")}
             ${renderBorrowedUnits(10)}
-            ${renderRemovedUnits(subtractOnes)}
+            <span class="borrow-fly" aria-hidden="true">10</span>
+          </div>
+        </div>
+        <div class="flow-row middle-row subtraction-middle">
+          <span class="flow-label">中段</span>
+          <div class="flow-cell tens-cell">${renderTenBlocks(Math.floor(question.b / 10))}</div>
+          <div class="flow-cell ones-cell">${renderRemovedUnits(subtractOnes)}</div>
+        </div>
+        <div class="flow-row result-row subtraction-result">
+          <span class="flow-label">下段</span>
+          <div class="flow-cell tens-cell">${renderTenBlocks(resultTens)}</div>
+          <div class="flow-cell ones-cell">
+            ${renderUnitBlocks(Math.min(onesBefore, resultOnes), "result")}
+            ${renderUnitBlocks(borrowedResultOnes, "borrow-result")}
           </div>
         </div>
       </div>
       <div class="demo-steps">
-        <span>1. ${onesBefore}こから${subtractOnes}こはひけない</span>
-        <span>2. 十の位から1つもらって一の位を${onesAfterBorrow}こにする</span>
-        <span>3. ${onesAfterBorrow}こから${subtractOnes}こ消すと${resultOnes}こ残る。答えは ${question.answer}</span>
+        <span>1. 上段の一の位 ${onesBefore} から中段の ${subtractOnes} はひけない</span>
+        <span>2. 上段の十の位から10のまとまりを一の位へ動かして、${onesAfterBorrow}こにする</span>
+        <span>3. 中段の数をひいて、下段に ${question.answer} が残る</span>
       </div>
     </div>
   `;
@@ -528,6 +554,24 @@ function renderTenBlocks(count) {
   return Array.from({ length: count }, () => '<i class="ten-block"></i>').join("");
 }
 
+function renderFinalTenBlocks(carryTens, totalTens) {
+  const count = Math.max(0, totalTens - carryTens);
+  return Array.from({ length: carryTens }, () => '<i class="ten-block final-carry-ten"></i>').join("")
+    + Array.from({ length: count }, () => '<i class="ten-block final-existing-ten"></i>').join("");
+}
+
+function renderVerticalNumberRow(label, value, rowType) {
+  const tens = Math.floor(value / 10);
+  const ones = value % 10;
+  return `
+    <div class="flow-row ${rowType}-row">
+      <span class="flow-label">${label}</span>
+      <div class="flow-cell tens-cell">${renderTenBlocks(tens)}</div>
+      <div class="flow-cell ones-cell">${renderUnitBlocks(ones, rowType)}</div>
+    </div>
+  `;
+}
+
 function renderUnitBlocks(count, type) {
   return Array.from({ length: count }, (_, index) => `<i class="unit-block ${type}" style="--i:${index}"></i>`).join("");
 }
@@ -539,6 +583,13 @@ function renderBorrowedUnits(count) {
   ).join("");
 }
 
+function renderGroupedCarryUnits(count) {
+  return Array.from(
+    { length: count },
+    (_, index) => `<i class="unit-block carry-piece" style="--i:${index}"></i>`,
+  ).join("");
+}
+
 function renderRemovedUnits(count) {
   return Array.from(
     { length: count },
@@ -547,7 +598,7 @@ function renderRemovedUnits(count) {
 }
 
 function renderMovingCarryGroup() {
-  return '<span class="carry-group" aria-hidden="true">10</span>';
+  return '<span class="carry-group" aria-hidden="true">10こ</span>';
 }
 
 function buildHint(question) {
