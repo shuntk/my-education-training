@@ -392,16 +392,24 @@ function submitAnswer() {
 
   state.currentIndex += 1;
   els.progressFill.style.width = `${(state.currentIndex / QUESTIONS_PER_RUN) * 100}%`;
+  if (correct) {
+    if (state.currentIndex >= QUESTIONS_PER_RUN) {
+      finishQuiz();
+    } else {
+      els.feedbackText.textContent = "いいね！";
+      setTimeout(renderQuestion, 260);
+    }
+  } else {
+    els.feedbackText.textContent = `せいかいは ${question.answer}`;
+    renderVisualHint(question);
+  }
+}
+
+function goNextAfterHint() {
   if (state.currentIndex >= QUESTIONS_PER_RUN) {
     finishQuiz();
   } else {
-    if (correct) {
-      els.feedbackText.textContent = "いいね！";
-    } else {
-      els.feedbackText.textContent = `せいかいは ${question.answer}`;
-      renderVisualHint(question);
-    }
-    setTimeout(renderQuestion, correct ? 260 : 2400);
+    renderQuestion();
   }
 }
 
@@ -420,7 +428,9 @@ function renderVisualHint(question) {
       <span><i class="tens-swatch"></i>十の位</span>
       <span><i class="ones-swatch"></i>一の位</span>
     </div>
+    <button class="primary-button hint-next-button" id="nextAfterHintButton" type="button">つぎへ</button>
   `;
+  document.querySelector("#nextAfterHintButton").addEventListener("click", goNextAfterHint);
 }
 
 function buildHint(question) {

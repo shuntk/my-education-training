@@ -584,6 +584,11 @@ select {
   border-radius: 3px;
 }
 
+.hint-next-button {
+  width: min(220px, 100%);
+  justify-self: center;
+}
+
 .keypad {
   width: min(560px, 100%);
   margin: 14px auto 0;
