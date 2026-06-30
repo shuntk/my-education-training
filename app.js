@@ -415,9 +415,101 @@ function goNextAfterHint() {
 
 function renderVisualHint(question) {
   const hint = buildHint(question);
+  const demo = buildVisualDemo(question);
   els.visualHint.classList.add("active");
   els.visualHint.innerHTML = `
     <div class="hint-message">${hint.message}</div>
+    ${demo}
+    <button class="primary-button hint-next-button" id="nextAfterHintButton" type="button">つぎへ</button>
+  `;
+  document.querySelector("#nextAfterHintButton").addEventListener("click", goNextAfterHint);
+}
+
+function buildVisualDemo(question) {
+  if (question.operation === "+" && shouldShowCarryDemo(question)) {
+    return renderAdditionCarryDemo(question);
+  }
+  if (question.operation === "-" && shouldShowBorrowDemo(question)) {
+    return renderSubtractionBorrowDemo(question);
+  }
+  return renderPlaceValueTable(question);
+}
+
+function shouldShowCarryDemo(question) {
+  return question.a < 100 && question.b < 100 && (question.a % 10) + (question.b % 10) >= 10;
+}
+
+function shouldShowBorrowDemo(question) {
+  return question.a < 100 && question.b < 100 && question.a % 10 < question.b % 10;
+}
+
+function renderAdditionCarryDemo(question) {
+  const aTens = Math.floor(question.a / 10);
+  const bTens = Math.floor(question.b / 10);
+  const aOnes = question.a % 10;
+  const bOnes = question.b % 10;
+  const onesSum = aOnes + bOnes;
+  const resultTens = Math.floor(question.answer / 10);
+  const resultOnes = question.answer % 10;
+  return `
+    <div class="regroup-demo addition-demo">
+      <div class="demo-stage">
+        <div class="place-lane tens-lane">
+          <strong>十の位</strong>
+          <div class="lane-box">${renderTenBlocks(aTens + bTens)}<i class="ten-block carry-in"></i></div>
+        </div>
+        <div class="place-lane ones-lane">
+          <strong>一の位</strong>
+          <div class="lane-box ones-pile">
+            ${renderUnitBlocks(aOnes, "start")}
+            ${renderUnitBlocks(bOnes, "add")}
+            ${renderMovingCarryGroup()}
+          </div>
+        </div>
+      </div>
+      <div class="demo-steps">
+        <span>1. 一の位: ${aOnes} + ${bOnes} = ${onesSum}</span>
+        <span>2. 10こを十の位へ動かす</span>
+        <span>3. 十の位は${resultTens}、一の位は${resultOnes}で ${question.answer}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderSubtractionBorrowDemo(question) {
+  const tensBefore = Math.floor(question.a / 10);
+  const onesBefore = question.a % 10;
+  const subtractOnes = question.b % 10;
+  const onesAfterBorrow = onesBefore + 10;
+  const resultTens = Math.floor(question.answer / 10);
+  const resultOnes = question.answer % 10;
+  return `
+    <div class="regroup-demo subtraction-demo">
+      <div class="demo-stage">
+        <div class="place-lane tens-lane">
+          <strong>十の位</strong>
+          <div class="lane-box">${renderTenBlocks(Math.max(0, tensBefore - 1))}<i class="ten-block borrowed-ten"></i></div>
+        </div>
+        <div class="place-lane ones-lane">
+          <strong>一の位</strong>
+          <div class="lane-box ones-pile">
+            ${renderUnitBlocks(onesBefore, "start")}
+            ${renderBorrowedUnits(10)}
+            ${renderRemovedUnits(subtractOnes)}
+          </div>
+        </div>
+      </div>
+      <div class="demo-steps">
+        <span>1. ${onesBefore}こから${subtractOnes}こはひけない</span>
+        <span>2. 十の位から1つもらって一の位を${onesAfterBorrow}こにする</span>
+        <span>3. ${onesAfterBorrow}こから${subtractOnes}こ消すと${resultOnes}こ残る。答えは ${question.answer}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderPlaceValueTable(question) {
+  return `
     <div class="place-board">
       ${renderPlaceRow(question.a, "上の数")}
       ${renderPlaceRow(question.b, question.operation === "+" ? "たす数" : "ひく数")}
@@ -428,9 +520,34 @@ function renderVisualHint(question) {
       <span><i class="tens-swatch"></i>十の位</span>
       <span><i class="ones-swatch"></i>一の位</span>
     </div>
-    <button class="primary-button hint-next-button" id="nextAfterHintButton" type="button">つぎへ</button>
   `;
-  document.querySelector("#nextAfterHintButton").addEventListener("click", goNextAfterHint);
+}
+
+function renderTenBlocks(count) {
+  if (count === 0) return "";
+  return Array.from({ length: count }, () => '<i class="ten-block"></i>').join("");
+}
+
+function renderUnitBlocks(count, type) {
+  return Array.from({ length: count }, (_, index) => `<i class="unit-block ${type}" style="--i:${index}"></i>`).join("");
+}
+
+function renderBorrowedUnits(count) {
+  return Array.from(
+    { length: count },
+    (_, index) => `<i class="unit-block borrowed" style="--i:${index}"></i>`,
+  ).join("");
+}
+
+function renderRemovedUnits(count) {
+  return Array.from(
+    { length: count },
+    (_, index) => `<i class="unit-block removed" style="--i:${index}"></i>`,
+  ).join("");
+}
+
+function renderMovingCarryGroup() {
+  return '<span class="carry-group" aria-hidden="true">10</span>';
 }
 
 function buildHint(question) {
