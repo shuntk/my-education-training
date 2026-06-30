@@ -89,6 +89,7 @@ const els = {
   answerInput: document.querySelector("#answerInput"),
   submitAnswerButton: document.querySelector("#submitAnswerButton"),
   feedbackText: document.querySelector("#feedbackText"),
+  visualHint: document.querySelector("#visualHint"),
   keypad: document.querySelector("#keypad"),
   resultPlayer: document.querySelector("#resultPlayer"),
   resultTitle: document.querySelector("#resultTitle"),
@@ -360,6 +361,8 @@ function renderQuestion() {
   els.questionCounter.textContent = `${state.currentIndex + 1} / ${QUESTIONS_PER_RUN}`;
   els.progressFill.style.width = `${(state.currentIndex / QUESTIONS_PER_RUN) * 100}%`;
   els.feedbackText.textContent = "";
+  els.visualHint.innerHTML = "";
+  els.visualHint.classList.remove("active");
   els.answerInput.value = "";
   state.activeQuestionStartedAt = performance.now();
   state.acceptingAnswer = true;
@@ -392,9 +395,105 @@ function submitAnswer() {
   if (state.currentIndex >= QUESTIONS_PER_RUN) {
     finishQuiz();
   } else {
-    els.feedbackText.textContent = correct ? "いいね！" : `せいかいは ${question.answer}`;
-    setTimeout(renderQuestion, correct ? 260 : 620);
+    if (correct) {
+      els.feedbackText.textContent = "いいね！";
+    } else {
+      els.feedbackText.textContent = `せいかいは ${question.answer}`;
+      renderVisualHint(question);
+    }
+    setTimeout(renderQuestion, correct ? 260 : 2400);
   }
+}
+
+function renderVisualHint(question) {
+  const hint = buildHint(question);
+  els.visualHint.classList.add("active");
+  els.visualHint.innerHTML = `
+    <div class="hint-message">${hint.message}</div>
+    <div class="place-board">
+      ${renderPlaceRow(question.a, "上の数")}
+      ${renderPlaceRow(question.b, question.operation === "+" ? "たす数" : "ひく数")}
+      ${renderPlaceRow(question.answer, "答え")}
+    </div>
+    <div class="block-legend">
+      <span><i class="hundreds-swatch"></i>百の位</span>
+      <span><i class="tens-swatch"></i>十の位</span>
+      <span><i class="ones-swatch"></i>一の位</span>
+    </div>
+  `;
+}
+
+function buildHint(question) {
+  if (question.operation === "+") {
+    const carryPlaces = carryPlaceLabels(question.a, question.b);
+    if (carryPlaces.length > 0) {
+      return { message: `${carryPlaces.join("と")}で10のまとまりを作ろう。くり上がりを忘れずに。` };
+    }
+    return { message: "位をそろえて、同じ色どうしをたしてみよう。" };
+  }
+
+  const borrowPlaces = borrowPlaceLabels(question.a, question.b);
+  if (borrowPlaces.length > 0) {
+    return { message: `${borrowPlaces.join("と")}で足りない時は、左の位から10をもらおう。` };
+  }
+  return { message: "位をそろえて、同じ色どうしをひいてみよう。" };
+}
+
+function carryPlaceLabels(a, b) {
+  const labels = [];
+  const placeLabels = ["一の位", "十の位", "百の位"];
+  for (let i = 0; i < 3; i += 1) {
+    if (Math.floor(a / 10 ** i) % 10 + (Math.floor(b / 10 ** i) % 10) >= 10) {
+      labels.push(placeLabels[i]);
+    }
+  }
+  return labels;
+}
+
+function borrowPlaceLabels(a, b) {
+  const labels = [];
+  const placeLabels = ["一の位", "十の位", "百の位"];
+  for (let i = 0; i < 3; i += 1) {
+    if (Math.floor(a / 10 ** i) % 10 < (Math.floor(b / 10 ** i) % 10)) {
+      labels.push(placeLabels[i]);
+    }
+  }
+  return labels;
+}
+
+function renderPlaceRow(value, label) {
+  const digits = splitDigits(value);
+  return `
+    <div class="place-row">
+      <span class="place-label">${label}</span>
+      ${renderPlace("hundreds", "百", digits.hundreds)}
+      ${renderPlace("tens", "十", digits.tens)}
+      ${renderPlace("ones", "一", digits.ones)}
+    </div>
+  `;
+}
+
+function renderPlace(type, label, count) {
+  return `
+    <div class="place-cell ${type}">
+      <strong>${label}</strong>
+      <div class="blocks">${renderBlocks(type, count)}</div>
+      <span>${count}</span>
+    </div>
+  `;
+}
+
+function renderBlocks(type, count) {
+  if (count === 0) return '<i class="empty-block"></i>';
+  return Array.from({ length: count }, () => `<i class="math-block ${type}"></i>`).join("");
+}
+
+function splitDigits(value) {
+  return {
+    hundreds: Math.floor(value / 100) % 10,
+    tens: Math.floor(value / 10) % 10,
+    ones: value % 10,
+  };
 }
 
 function finishQuiz() {

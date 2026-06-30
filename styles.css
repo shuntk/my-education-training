@@ -8,6 +8,9 @@
   --mint: #6fd3b1;
   --blue: #6ba7ff;
   --pink: #ff7c9c;
+  --hundreds: #6ba7ff;
+  --tens: #6fd3b1;
+  --ones: #ff7c9c;
   --paper: #fffdf6;
   --shadow: 0 18px 44px rgba(91, 67, 28, 0.14);
   font-family:
@@ -449,6 +452,138 @@ select {
   font-weight: 900;
 }
 
+.visual-hint {
+  width: 100%;
+  display: none;
+}
+
+.visual-hint.active {
+  display: grid;
+  gap: 10px;
+}
+
+.hint-message {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff4c7;
+  color: var(--primary-dark);
+  font-weight: 900;
+  line-height: 1.45;
+}
+
+.place-board {
+  display: grid;
+  gap: 6px;
+}
+
+.place-row {
+  display: grid;
+  grid-template-columns: 4.2rem repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  align-items: stretch;
+}
+
+.place-label,
+.place-cell {
+  min-height: 54px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.place-label {
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.place-cell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 4px;
+  padding: 6px;
+  text-align: center;
+}
+
+.place-cell strong,
+.place-cell span {
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.place-cell.hundreds {
+  border-color: rgba(107, 167, 255, 0.78);
+}
+
+.place-cell.tens {
+  border-color: rgba(111, 211, 177, 0.82);
+}
+
+.place-cell.ones {
+  border-color: rgba(255, 124, 156, 0.82);
+}
+
+.blocks {
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.math-block,
+.empty-block {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.math-block.hundreds,
+.hundreds-swatch {
+  background: var(--hundreds);
+}
+
+.math-block.tens,
+.tens-swatch {
+  background: var(--tens);
+}
+
+.math-block.ones,
+.ones-swatch {
+  background: var(--ones);
+}
+
+.empty-block {
+  border: 1px dashed var(--line);
+}
+
+.block-legend {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.block-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.block-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
 .keypad {
   width: min(560px, 100%);
   margin: 14px auto 0;
@@ -504,8 +639,8 @@ select {
   }
 
   #quizScreen .problem {
-    min-height: 150px;
-    font-size: clamp(4.5rem, 8vw, 6.8rem);
+    min-height: 116px;
+    font-size: clamp(4rem, 7vw, 5.7rem);
   }
 
   #quizScreen .keypad {
@@ -514,7 +649,7 @@ select {
   }
 
   #quizScreen .keypad button {
-    min-height: 72px;
+    min-height: 68px;
     font-size: 1.55rem;
   }
 
