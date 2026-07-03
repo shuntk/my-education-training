@@ -1050,6 +1050,419 @@ select {
   }
 }
 
+/* --- Equation row demo --- */
+.equation-demo {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  overflow-x: auto;
+}
+
+.eq-table {
+  display: grid;
+  gap: 6px;
+}
+
+.eq-header {
+  display: grid;
+  grid-template-columns: 3.2rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+
+.eq-place-label {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.eq-row {
+  display: grid;
+  grid-template-columns: 3.2rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.eq-num-col {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  font-weight: 900;
+  font-size: 1.1rem;
+}
+
+.eq-number-muted {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.eq-number-final {
+  color: var(--ink);
+  font-size: 1.3rem;
+}
+
+.eq-operator {
+  padding-left: 0.8rem;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.eq-arrow {
+  padding: 4px 0;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 900;
+  color: var(--primary-dark);
+  background: #fff4c7;
+  border-radius: 6px;
+}
+
+.eq-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  min-width: 130px;
+  padding: 6px 8px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  position: relative;
+  overflow: visible;
+}
+
+.eq-tens-cell {
+  border-color: rgba(111, 211, 177, 0.7);
+  background: rgba(111, 211, 177, 0.06);
+}
+
+.eq-ones-cell {
+  border-color: rgba(255, 124, 156, 0.7);
+  background: rgba(255, 124, 156, 0.05);
+}
+
+.eq-hundreds-cell {
+  border-color: rgba(107, 167, 255, 0.7);
+  background: rgba(107, 167, 255, 0.05);
+}
+
+.eq-boxes {
+  display: grid;
+  grid-template-columns: repeat(10, 10px);
+  gap: 2px;
+}
+
+.eq-loose {
+  display: grid;
+  grid-template-columns: repeat(10, 10px);
+  gap: 2px;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 2px dashed var(--line);
+}
+
+.eq-box {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(39, 49, 63, 0.1);
+}
+
+.eq-box-empty {
+  background: #f0ede6;
+  border: 1px dashed var(--line);
+}
+
+/* 色分け: 数字Aはピンク系（一の位） */
+.color-a {
+  background: #ff7c9c;
+}
+
+/* 色分け: 数字Bはオレンジ系（一の位） */
+.color-b {
+  background: #ffb000;
+}
+
+/* 十の位: 緑系 */
+.color-a-tens {
+  background: #6fd3b1;
+}
+
+.color-b-tens {
+  background: #3bb58e;
+}
+
+/* 百の位: 青系 */
+.color-a-hundreds {
+  background: #6ba7ff;
+}
+
+.color-b-hundreds {
+  background: #4080e0;
+}
+
+/* 結果行をやや目立たせる */
+.eq-row-result .eq-cell {
+  border-width: 3px;
+  box-shadow: 0 4px 12px rgba(107, 167, 255, 0.12);
+}
+
+/* --- アニメーション --- */
+.eq-boxes-animated {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(10, 12px);
+  gap: 2px;
+}
+
+.eq-ones-result {
+  position: relative;
+  overflow: visible;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.eq-carry-row {
+  display: grid;
+  grid-template-columns: repeat(10, 10px);
+  gap: 2px;
+  animation: eqSlideLeft 1400ms ease-in-out both;
+  animation-delay: calc(var(--place-delay, 0ms) + 1200ms);
+}
+
+.eq-remain-row {
+  display: grid;
+  grid-template-columns: repeat(10, 10px);
+  gap: 2px;
+  margin-top: 3px;
+}
+
+.eq-carry-slide {
+  animation: eqPopIn 300ms ease-out both;
+  animation-delay: calc(var(--place-delay, 0ms) + var(--i) * 40ms);
+}
+
+.eq-remain {
+  animation: eqPopIn 300ms ease-out both;
+  animation-delay: calc(var(--place-delay, 0ms) + 500ms + var(--i) * 40ms);
+}
+
+.eq-carry-land {
+  background: #f0ede6;
+  border: 1px dashed var(--line);
+  animation: eqCarryColorIn 500ms ease-out both;
+  animation-delay: calc(var(--place-delay, 0ms) + 1800ms);
+}
+
+.eq-carry-land-fast {
+  animation: eqCarryFlash 400ms ease-out both;
+  animation-delay: calc(var(--place-delay, 0ms) + 200ms);
+}
+
+.eq-carry-land-early {
+  opacity: 0;
+  animation: eqCarryFlash 500ms ease-out forwards;
+  animation-delay: 2600ms;
+}
+
+.eq-carry-static {
+  /* 一の位から繰り上がってきたボックス。アニメーション対象外 */
+}
+
+.eq-empty-appear {
+  opacity: 0;
+  animation: eqEmptyAppear 300ms ease-out both;
+  animation-delay: calc(var(--place-delay, 0ms) + var(--i) * 40ms);
+}
+
+.eq-tens-result {
+  position: relative;
+  overflow: visible;
+}
+
+/* --- くり下がりアニメーション --- */
+.eq-tens-borrow-src {
+  position: relative;
+  overflow: visible;
+}
+
+.eq-borrow-leave {
+  animation: eqBorrowLeave 1400ms ease-in-out both;
+  animation-delay: 600ms;
+}
+
+.eq-sub-ones-result {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.eq-borrow-in-row {
+  display: grid;
+  grid-template-columns: repeat(10, 10px);
+  gap: 2px;
+}
+
+.eq-sub-ones-row {
+  display: grid;
+  grid-template-columns: repeat(10, 10px);
+  gap: 2px;
+  margin-top: 3px;
+}
+
+.eq-borrow-slide-in {
+  opacity: 0;
+  animation: eqBorrowSlideIn 800ms ease-out both;
+  animation-delay: calc(1600ms + var(--i) * 50ms);
+}
+
+.eq-sub-existing {
+  animation: eqPopIn 400ms ease-out both;
+  animation-delay: calc(var(--i) * 50ms);
+}
+
+.eq-sub-result-stay {
+  opacity: 1;
+}
+
+.eq-sub-remove {
+  animation: eqSubRemove 1200ms ease-in-out both;
+  animation-delay: calc(3600ms + var(--r) * 100ms);
+}
+
+.eq-sub-remove-tens {
+  animation: eqSubRemove 1200ms ease-in-out both;
+  animation-delay: calc(3600ms + var(--r) * 100ms);
+}
+
+.eq-borrow-slide-in.eq-sub-remove {
+  opacity: 0;
+  animation: eqBorrowSlideIn 800ms ease-out both, eqSubRemove 1200ms ease-in-out both;
+  animation-delay: calc(1600ms + var(--i) * 50ms), calc(3600ms + var(--r) * 100ms);
+}
+
+@keyframes eqPopIn {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes eqSlideLeft {
+  0% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  60% {
+    transform: translateX(-105%);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(-105%);
+    opacity: 0;
+  }
+}
+
+@keyframes eqCarryColorIn {
+  0% {
+    background: #f0ede6;
+    transform: scale(1);
+    box-shadow: 0 0 0 3px rgba(111, 211, 177, 0.4);
+  }
+  50% {
+    transform: scale(1.4);
+    box-shadow: 0 0 0 4px rgba(111, 211, 177, 0.6);
+  }
+  100% {
+    background: #6fd3b1;
+    transform: scale(1);
+    box-shadow: inset 0 0 0 1px rgba(39, 49, 63, 0.1);
+  }
+}
+
+@keyframes eqEmptyAppear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes eqCarryFlash {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.4);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: inset 0 0 0 1px rgba(39, 49, 63, 0.1);
+  }
+}
+
+@keyframes eqBorrowLeave {
+  0% {
+    background: #ff7c9c;
+    transform: scale(1);
+  }
+  40% {
+    background: #ff7c9c;
+    transform: scale(1.2);
+    box-shadow: 0 0 0 3px rgba(255, 124, 156, 0.4);
+  }
+  100% {
+    background: #f0ede6;
+    border: 1px dashed var(--line);
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
+@keyframes eqBorrowSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-60%) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes eqSubRemove {
+  0% {
+    background: #ff7c9c;
+    transform: scale(1);
+  }
+  30% {
+    background: #ffb000;
+    transform: scale(1.1);
+  }
+  60% {
+    background: #ffb000;
+    transform: scale(1);
+  }
+  100% {
+    background: #f0ede6;
+    border: 1px dashed var(--line);
+    transform: scale(1);
+    box-shadow: none;
+  }
+}
+
 .keypad {
   width: min(560px, 100%);
   margin: 14px auto 0;

@@ -41,14 +41,14 @@ const levels = [
     digits: 3,
     carry: false,
   },
-  {
-    id: "three-carry",
-    title: "3けた くり上がり",
-    short: "3けた+",
-    description: "発展チャレンジ。ゆっくり正確に解ければ十分すごい。",
-    digits: 3,
-    carry: true,
-  },
+  // {
+  //   id: "three-carry",
+  //   title: "3けた くり上がり",
+  //   short: "3けた+",
+  //   description: "発展チャレンジ。ゆっくり正確に解ければ十分すごい。",
+  //   digits: 3,
+  //   carry: true,
+  // },
 ];
 
 const state = {
@@ -436,99 +436,207 @@ function buildVisualDemo(question) {
 }
 
 function shouldShowCarryDemo(question) {
-  return question.a < 100 && question.b < 100 && (question.a % 10) + (question.b % 10) >= 10;
+  return question.a < 100 && question.b < 100 && additionHasCarry(question.a, question.b);
 }
 
 function shouldShowBorrowDemo(question) {
-  return question.a < 100 && question.b < 100 && question.a % 10 < question.b % 10;
+  return subtractionHasBorrow(question.a, question.b);
 }
 
 function renderAdditionCarryDemo(question) {
-  const aTens = Math.floor(question.a / 10);
-  const bTens = Math.floor(question.b / 10);
-  const aOnes = question.a % 10;
-  const bOnes = question.b % 10;
-  const onesSum = aOnes + bOnes;
-  const resultTens = Math.floor(question.answer / 10);
-  const resultOnes = question.answer % 10;
-  const carryTens = Math.floor(onesSum / 10);
+  const maxDigits = Math.max(String(question.a).length, String(question.b).length, String(question.answer).length);
+  const placeNames = ["一の位", "十の位", "百の位"];
+  const placeClasses = ["eq-ones-cell", "eq-tens-cell", "eq-hundreds-cell"];
+  const colorAs = ["color-a", "color-a-tens", "color-a-hundreds"];
+  const colorBs = ["color-b", "color-b-tens", "color-b-hundreds"];
+
+  const aDigits = [];
+  const bDigits = [];
+  const ansDigits = [];
+  for (let p = 0; p < maxDigits; p += 1) {
+    aDigits.push(Math.floor(question.a / 10 ** p) % 10);
+    bDigits.push(Math.floor(question.b / 10 ** p) % 10);
+    ansDigits.push(Math.floor(question.answer / 10 ** p) % 10);
+  }
+
+  const carries = [];
+  let carry = 0;
+  for (let p = 0; p < maxDigits; p += 1) {
+    const sum = aDigits[p] + bDigits[p] + carry;
+    carries.push(sum >= 10);
+    carry = sum >= 10 ? 1 : 0;
+  }
+
+  const headerCells = placeNames.slice(0, maxDigits).reverse()
+    .map((name) => `<span class="eq-place-label">${name}</span>`).join("");
+
+  const rowACells = aDigits.slice().reverse().map((d, i) => {
+    const p = maxDigits - 1 - i;
+    return `<div class="eq-cell ${placeClasses[p]}">${renderEquationBoxes(10, d, colorAs[p])}</div>`;
+  }).join("");
+
+  const rowBCells = bDigits.slice().reverse().map((d, i) => {
+    const p = maxDigits - 1 - i;
+    return `<div class="eq-cell ${placeClasses[p]}">${renderEquationBoxes(10, d, colorBs[p])}</div>`;
+  }).join("");
+
+  let carryAcc = 0;
+  const resultCells = aDigits.slice().reverse().map((_, i) => {
+    const p = maxDigits - 1 - i;
+    const hasCarryFromRight = p > 0 && carries[p - 1];
+    const hasCarryToLeft = carries[p];
+    const aVal = aDigits[p] + (hasCarryFromRight ? 1 : 0);
+    const bVal = bDigits[p];
+    const placeDelay = p * 3500;
+    const carryArriveDelay = hasCarryFromRight ? (p - 1) * 3500 + 2600 : 0;
+
+    if (hasCarryToLeft) {
+      return `<div class="eq-cell ${placeClasses[p]} eq-ones-result" style="--place-delay:${placeDelay}ms">
+        ${renderAnimatedOnesBoxes(aVal, bVal, ansDigits[p], hasCarryFromRight, colorAs[p], colorBs[p], carryArriveDelay)}
+      </div>`;
+    }
+    return `<div class="eq-cell ${placeClasses[p]} eq-ones-result" style="--place-delay:${placeDelay}ms">
+      ${renderAnimatedNoCarry(aVal, bVal, hasCarryFromRight, colorAs[p], colorBs[p], carryArriveDelay)}
+    </div>`;
+  }).join("");
+
+  const carryPlaces = carries.map((c, i) => c ? placeNames[i] : null).filter(Boolean);
+  const stepsHtml = carryPlaces.map((name, i) => {
+    const p = carries.indexOf(true, i > 0 ? carries.indexOf(true) + 1 : 0);
+    return `<span>${i + 1}. ${name}: ${aDigits[carries.indexOf(true, i === 0 ? 0 : undefined)]} + ${bDigits[carries.indexOf(true, i === 0 ? 0 : undefined)]} = 10こ以上 → くり上げ</span>`;
+  });
+
+  const gridCols = `3.2rem repeat(${maxDigits}, minmax(0, 1fr))`;
+
   return `
-    <div class="regroup-demo vertical-demo addition-demo">
-      <div class="vertical-board">
-        <div class="place-heading"></div>
-        <div class="place-heading tens-heading">十の位</div>
-        <div class="place-heading ones-heading">一の位</div>
-        ${renderVerticalNumberRow("上段", question.a, "top")}
-        ${renderVerticalNumberRow("中段", question.b, "middle")}
-        <div class="flow-row result-row addition-result">
-          <span class="flow-label">下段</span>
-          <div class="flow-cell tens-cell">
-            ${renderTenBlocks(aTens + bTens)}
-            ${renderFinalTenBlocks(carryTens, resultTens)}
-            <span class="carry-landing" aria-hidden="true">10こ</span>
-          </div>
-          <div class="flow-cell ones-cell">
-            ${renderUnitBlocks(aOnes, "drop-top")}
-            ${renderUnitBlocks(bOnes, "drop-middle")}
-            ${renderGroupedCarryUnits(Math.min(10, onesSum))}
-            ${renderUnitBlocks(resultOnes, "result")}
-            ${renderMovingCarryGroup()}
-          </div>
+    <div class="equation-demo addition-demo">
+      <div class="eq-table" style="--eq-cols: ${maxDigits}">
+        <div class="eq-header" style="grid-template-columns: ${gridCols}">
+          <span class="eq-num-col"></span>
+          ${headerCells}
+        </div>
+        <div class="eq-row" style="grid-template-columns: ${gridCols}">
+          <span class="eq-num-col eq-number">${question.a}</span>
+          ${rowACells}
+        </div>
+        <div class="eq-operator">＋</div>
+        <div class="eq-row" style="grid-template-columns: ${gridCols}">
+          <span class="eq-num-col eq-number">${question.b}</span>
+          ${rowBCells}
+        </div>
+        <div class="eq-operator">=</div>
+        <div class="eq-row eq-row-result" style="grid-template-columns: ${gridCols}">
+          <span class="eq-num-col eq-number eq-number-final">${question.answer}</span>
+          ${resultCells}
         </div>
       </div>
       <div class="demo-steps">
-        <span>1. 上段と中段を下段に集める</span>
-        <span>2. 一の位: ${aOnes} + ${bOnes} = ${onesSum}</span>
-        <span>3. 下段の一の位から10のまとまりを十の位へ動かして ${question.answer}</span>
+        ${carryPlaces.map((name) => `<span>${name}で10こ のまとまりを左の位へくり上げる</span>`).join("")}
+        <span>答え: ${question.answer}</span>
       </div>
     </div>
   `;
 }
 
 function renderSubtractionBorrowDemo(question) {
-  const tensBefore = Math.floor(question.a / 10);
-  const onesBefore = question.a % 10;
-  const subtractOnes = question.b % 10;
-  const onesAfterBorrow = onesBefore + 10;
-  const resultTens = Math.floor(question.answer / 10);
-  const resultOnes = question.answer % 10;
-  const borrowedResultOnes = Math.max(0, resultOnes - onesBefore);
+  const maxDigits = Math.max(String(question.a).length, String(question.b).length);
+  const placeNames = ["一の位", "十の位", "百の位"];
+  const placeClasses = ["eq-ones-cell", "eq-tens-cell", "eq-hundreds-cell"];
+
+  const aDigits = [];
+  const bDigits = [];
+  const ansDigits = [];
+  for (let p = 0; p < maxDigits; p += 1) {
+    aDigits.push(Math.floor(question.a / 10 ** p) % 10);
+    bDigits.push(Math.floor(question.b / 10 ** p) % 10);
+    ansDigits.push(Math.floor(question.answer / 10 ** p) % 10);
+  }
+
+  const borrows = [];
+  let borrow = 0;
+  for (let p = 0; p < maxDigits; p += 1) {
+    const diff = aDigits[p] - borrow - bDigits[p];
+    borrows.push(diff < 0);
+    borrow = diff < 0 ? 1 : 0;
+  }
+
+  const gridCols = `3.2rem repeat(${maxDigits}, minmax(0, 1fr))`;
+  const headerCells = placeNames.slice(0, maxDigits).reverse()
+    .map((name) => `<span class="eq-place-label">${name}</span>`).join("");
+
+  const rowACells = aDigits.slice().reverse().map((d, i) => {
+    const p = maxDigits - 1 - i;
+    const givesToRight = p > 0 && borrows[p - 1];
+    const receivesFromLeft = borrows[p];
+    if (givesToRight && receivesFromLeft) {
+      return `<div class="eq-cell ${placeClasses[p]} eq-tens-borrow-src eq-sub-ones-result">
+        ${renderEquationBoxesWithBorrow(10, d, "color-a")}
+        ${renderSubARowOnesOnly()}
+      </div>`;
+    }
+    if (givesToRight) {
+      return `<div class="eq-cell ${placeClasses[p]} eq-tens-borrow-src">
+        ${renderEquationBoxesWithBorrow(10, d, "color-a")}
+      </div>`;
+    }
+    if (receivesFromLeft) {
+      return `<div class="eq-cell ${placeClasses[p]} eq-sub-ones-result">
+        ${renderSubARowOnes(d)}
+      </div>`;
+    }
+    return `<div class="eq-cell ${placeClasses[p]}">
+      ${renderEquationBoxes(10, d, "color-a")}
+    </div>`;
+  }).join("");
+
+  const rowBCells = bDigits.slice().reverse().map((d, i) => {
+    const p = maxDigits - 1 - i;
+    return `<div class="eq-cell ${placeClasses[p]}">${renderEquationBoxes(10, d, "color-b")}</div>`;
+  }).join("");
+
+  const resultCells = aDigits.slice().reverse().map((_, i) => {
+    const p = maxDigits - 1 - i;
+    const receivesFromLeft = borrows[p];
+    const givesToRight = p > 0 && borrows[p - 1];
+    const aEffective = aDigits[p] - (givesToRight ? 1 : 0);
+
+    if (receivesFromLeft) {
+      return `<div class="eq-cell ${placeClasses[p]} eq-sub-ones-result">
+        ${renderSubResultBoxes(aDigits[p], bDigits[p])}
+      </div>`;
+    }
+    return `<div class="eq-cell ${placeClasses[p]}">
+      ${renderSubResultTensBoxes(aEffective, bDigits[p])}
+    </div>`;
+  }).join("");
+
+  const borrowPlaces = borrows.map((b, i) => b ? placeNames[i] : null).filter(Boolean);
+
   return `
-    <div class="regroup-demo vertical-demo subtraction-demo">
-      <div class="vertical-board">
-        <div class="place-heading"></div>
-        <div class="place-heading tens-heading">十の位</div>
-        <div class="place-heading ones-heading">一の位</div>
-        <div class="flow-row top-row subtraction-top">
-          <span class="flow-label">上段</span>
-          <div class="flow-cell tens-cell">
-            ${renderTenBlocks(Math.max(0, tensBefore - 1))}
-            <i class="ten-block borrow-source"></i>
-          </div>
-          <div class="flow-cell ones-cell">
-            ${renderUnitBlocks(onesBefore, "start")}
-            ${renderBorrowedUnits(10)}
-            <span class="borrow-fly" aria-hidden="true">10</span>
-          </div>
+    <div class="equation-demo subtraction-demo">
+      <div class="eq-table" style="--eq-cols: ${maxDigits}">
+        <div class="eq-header" style="grid-template-columns: ${gridCols}">
+          <span class="eq-num-col"></span>
+          ${headerCells}
         </div>
-        <div class="flow-row middle-row subtraction-middle">
-          <span class="flow-label">中段</span>
-          <div class="flow-cell tens-cell">${renderTenBlocks(Math.floor(question.b / 10))}</div>
-          <div class="flow-cell ones-cell">${renderRemovedUnits(subtractOnes)}</div>
+        <div class="eq-row" style="grid-template-columns: ${gridCols}">
+          <span class="eq-num-col eq-number">${question.a}</span>
+          ${rowACells}
         </div>
-        <div class="flow-row result-row subtraction-result">
-          <span class="flow-label">下段</span>
-          <div class="flow-cell tens-cell">${renderTenBlocks(resultTens)}</div>
-          <div class="flow-cell ones-cell">
-            ${renderUnitBlocks(Math.min(onesBefore, resultOnes), "result")}
-            ${renderUnitBlocks(borrowedResultOnes, "borrow-result")}
-          </div>
+        <div class="eq-operator">ー</div>
+        <div class="eq-row" style="grid-template-columns: ${gridCols}">
+          <span class="eq-num-col eq-number">${question.b}</span>
+          ${rowBCells}
+        </div>
+        <div class="eq-operator">=</div>
+        <div class="eq-row eq-row-result" style="grid-template-columns: ${gridCols}">
+          <span class="eq-num-col eq-number eq-number-final">${question.answer}</span>
+          ${resultCells}
         </div>
       </div>
       <div class="demo-steps">
-        <span>1. 上段の一の位 ${onesBefore} から中段の ${subtractOnes} はひけない</span>
-        <span>2. 上段の十の位から10のまとまりを一の位へ動かして、${onesAfterBorrow}こにする</span>
-        <span>3. 中段の数をひいて、下段に ${question.answer} が残る</span>
+        ${borrowPlaces.map((name) => `<span>${name}で足りないので左の位から10こもらう</span>`).join("")}
+        <span>答え: ${question.answer}</span>
       </div>
     </div>
   `;
@@ -547,6 +655,163 @@ function renderPlaceValueTable(question) {
       <span><i class="ones-swatch"></i>一の位</span>
     </div>
   `;
+}
+
+function renderEquationBoxes(total, filled, colorClass) {
+  return `<div class="eq-boxes">${Array.from({ length: total }, (_, i) =>
+    `<i class="eq-box ${i < filled ? colorClass : "eq-box-empty"}"></i>`
+  ).join("")}</div>`;
+}
+
+function renderEquationBoxesWithCarry(total, filled, colorClass) {
+  return `<div class="eq-boxes">${Array.from({ length: total }, (_, i) => {
+    if (i < filled) return `<i class="eq-box ${colorClass}"></i>`;
+    if (i === filled) return `<i class="eq-box ${colorClass} eq-carry-land"></i>`;
+    return `<i class="eq-box eq-box-empty"></i>`;
+  }).join("")}</div>`;
+}
+
+function renderAnimatedNoCarry(aVal, bVal, hasCarryFromRight, colorA, colorB, carryArriveDelay) {
+  const total = aVal + bVal;
+  const boxes = [];
+  let idx = 0;
+  if (hasCarryFromRight) {
+    boxes.push(`<i class="eq-box ${colorA} eq-carry-land-early" style="animation-delay:${carryArriveDelay}ms"></i>`);
+  }
+  const aCount = hasCarryFromRight ? aVal - 1 : aVal;
+  for (let i = 0; i < aCount; i += 1) {
+    boxes.push(`<i class="eq-box ${colorA} eq-carry-slide" style="--i:${idx}"></i>`);
+    idx += 1;
+  }
+  for (let i = 0; i < bVal; i += 1) {
+    boxes.push(`<i class="eq-box ${colorB} eq-carry-slide" style="--i:${idx}"></i>`);
+    idx += 1;
+  }
+  for (let i = total; i < 10; i += 1) {
+    boxes.push(`<i class="eq-box eq-box-empty eq-empty-appear" style="--i:${i}"></i>`);
+  }
+  return `<div class="eq-remain-row">${boxes.join("")}</div>`;
+}
+
+function renderEquationLooseBoxes(count, colorClass) {
+  if (count === 0) return "";
+  return `<div class="eq-loose">${Array.from({ length: count }, () =>
+    `<i class="eq-box ${colorClass}"></i>`
+  ).join("")}</div>`;
+}
+
+function renderAnimatedOnesBoxes(aOnes, bOnes, resultOnes, hasCarryFromRight, colorA, colorB, carryArriveDelay) {
+  const carryBoxes = [];
+  const remainBoxes = [];
+  let idx = 0;
+  if (hasCarryFromRight) {
+    carryBoxes.push(`<i class="eq-box ${colorA} eq-carry-land-early" style="animation-delay:${carryArriveDelay}ms"></i>`);
+    idx += 1;
+  }
+  const aCount = hasCarryFromRight ? aOnes - 1 : aOnes;
+  for (let i = 0; i < aCount; i += 1) {
+    if (idx < 10) {
+      carryBoxes.push(`<i class="eq-box ${colorA} eq-carry-slide" style="--i:${idx}"></i>`);
+    } else {
+      remainBoxes.push(`<i class="eq-box ${colorA} eq-remain" style="--i:${idx - 10}"></i>`);
+    }
+    idx += 1;
+  }
+  for (let i = 0; i < bOnes; i += 1) {
+    if (idx < 10) {
+      carryBoxes.push(`<i class="eq-box ${colorB} eq-carry-slide" style="--i:${idx}"></i>`);
+    } else {
+      remainBoxes.push(`<i class="eq-box ${colorB} eq-remain" style="--i:${idx - 10}"></i>`);
+    }
+    idx += 1;
+  }
+  const remainCount = remainBoxes.length;
+  for (let i = remainCount; i < 10; i += 1) {
+    remainBoxes.push(`<i class="eq-box eq-box-empty eq-empty-appear" style="--i:${i}"></i>`);
+  }
+  return `
+    <div class="eq-carry-row">${carryBoxes.join("")}</div>
+    <div class="eq-remain-row">${remainBoxes.join("")}</div>
+  `;
+}
+
+function renderSubARowOnes(onesBefore) {
+  const onesRow = [];
+  for (let i = 0; i < 10; i += 1) {
+    if (i < onesBefore) {
+      onesRow.push(`<i class="eq-box color-a"></i>`);
+    } else {
+      onesRow.push(`<i class="eq-box eq-box-empty"></i>`);
+    }
+  }
+  const borrowRow = [];
+  for (let i = 0; i < 10; i += 1) {
+    borrowRow.push(`<i class="eq-box color-a eq-borrow-slide-in" style="--i:${i}"></i>`);
+  }
+  return `
+    <div class="eq-sub-ones-row">${onesRow.join("")}</div>
+    <div class="eq-borrow-in-row">${borrowRow.join("")}</div>
+  `;
+}
+
+function renderSubARowOnesOnly() {
+  const borrowRow = [];
+  for (let i = 0; i < 10; i += 1) {
+    borrowRow.push(`<i class="eq-box color-a eq-borrow-slide-in" style="--i:${i}"></i>`);
+  }
+  return `<div class="eq-borrow-in-row">${borrowRow.join("")}</div>`;
+}
+
+function renderSubResultTensBoxes(tensAfterBorrow, bTens) {
+  const resultTens = tensAfterBorrow - bTens;
+  const boxes = [];
+  for (let i = 0; i < 10; i += 1) {
+    if (i < resultTens) {
+      boxes.push(`<i class="eq-box color-a eq-sub-result-stay" style="--i:${i}"></i>`);
+    } else if (i < tensAfterBorrow) {
+      boxes.push(`<i class="eq-box color-a eq-sub-remove-tens" style="--r:${i - resultTens}"></i>`);
+    } else {
+      boxes.push(`<i class="eq-box eq-box-empty"></i>`);
+    }
+  }
+  return `<div class="eq-boxes">${boxes.join("")}</div>`;
+}
+
+function renderSubResultBoxes(onesBefore, subtractOnes) {
+  const total = onesBefore + 10;
+  const resultOnes = total - subtractOnes;
+  const removeFromOnes = Math.min(onesBefore, subtractOnes);
+  const removeFromBorrow = subtractOnes - removeFromOnes;
+  const onesRow = [];
+  for (let i = 0; i < 10; i += 1) {
+    if (i < onesBefore - removeFromOnes) {
+      onesRow.push(`<i class="eq-box color-a eq-sub-result-stay" style="--i:${i}"></i>`);
+    } else if (i < onesBefore) {
+      onesRow.push(`<i class="eq-box color-a eq-sub-remove" style="--r:${i - (onesBefore - removeFromOnes) + removeFromBorrow}"></i>`);
+    } else {
+      onesRow.push(`<i class="eq-box eq-box-empty"></i>`);
+    }
+  }
+  const borrowRow = [];
+  for (let i = 0; i < 10; i += 1) {
+    if (i < 10 - removeFromBorrow) {
+      borrowRow.push(`<i class="eq-box color-a eq-sub-result-stay" style="--i:${i}"></i>`);
+    } else {
+      borrowRow.push(`<i class="eq-box color-a eq-sub-remove" style="--r:${i - (10 - removeFromBorrow)}"></i>`);
+    }
+  }
+  return `
+    <div class="eq-sub-ones-row">${borrowRow.join("")}</div>
+    <div class="eq-sub-ones-row">${onesRow.join("")}</div>
+  `;
+}
+
+function renderEquationBoxesWithBorrow(total, filled, colorClass) {
+  return `<div class="eq-boxes">${Array.from({ length: total }, (_, i) => {
+    if (i < filled - 1) return `<i class="eq-box ${colorClass}"></i>`;
+    if (i === filled - 1) return `<i class="eq-box ${colorClass} eq-borrow-leave"></i>`;
+    return `<i class="eq-box eq-box-empty"></i>`;
+  }).join("")}</div>`;
 }
 
 function renderTenBlocks(count) {
