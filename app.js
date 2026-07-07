@@ -313,6 +313,17 @@ function makeAddition(level) {
 }
 
 function makeSubtraction(level) {
+  if (level.digits === 1 && level.carry) {
+    for (let i = 0; i < 800; i += 1) {
+      const a = rand(10, 18);
+      const b = rand(1, 9);
+      if (subtractionHasBorrow(a, b)) {
+        return { a, b, operation: "-", answer: a - b };
+      }
+    }
+    return { a: 15, b: 8, operation: "-", answer: 7 };
+  }
+
   for (let i = 0; i < 1000; i += 1) {
     let a = randomNumber(level.digits);
     let b = randomNumber(level.digits);
