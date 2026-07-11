@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#ffd56a" />
     <title>まなびトレーニング</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=18" />
+    <link rel="stylesheet" href="./styles.css?v=20" />
   </head>
   <body>
     <div class="app-shell">
@@ -74,14 +74,24 @@
               <strong>反射タップ</strong>
               <span>光ったマスをすばやくタップ。平均反応タイムに挑戦します。</span>
             </button>
+            <button class="mode-choice-card sequence-choice" id="openSequenceButton" type="button">
+              <span class="mode-choice-icon" aria-hidden="true">↗</span>
+              <strong>順番記憶</strong>
+              <span>光った順番を覚えて、同じ順にマスを押します。</span>
+            </button>
+            <button class="mode-choice-card flash-choice" id="openFlashButton" type="button">
+              <span class="mode-choice-icon" aria-hidden="true">☆</span>
+              <strong>フラッシュ記憶</strong>
+              <span>一瞬だけ出る数字の場所を覚えて、1から順に押します。</span>
+            </button>
           </div>
 
           <section class="coach-panel" aria-label="おすすめゲーム">
             <h3>ほかのおすすめ</h3>
             <ul>
-              <li>光った順番をまねして押す「順番記憶」。見る力と短期記憶を一緒に使います。</li>
-              <li>一瞬だけ出る数字や形を覚える「フラッシュ記憶」。集中して見る練習に向いています。</li>
               <li>中央を見たまま端の色を答える「横目カラー」。周辺視野の練習に向いています。</li>
+              <li>左右に出るマークを同じ手で押す「左右判断」。反応と判断を一緒に使います。</li>
+              <li>同じ形だけを探す「なかま探し」。目で探す速さと集中力を育てます。</li>
             </ul>
           </section>
         </section>
@@ -163,6 +173,62 @@
           </section>
         </section>
 
+        <section class="screen" id="sequenceScreen" aria-labelledby="sequenceTitle">
+          <div class="vision-status">
+            <div>
+              <p class="eyebrow" id="sequencePlayerLabel"></p>
+              <h2 id="sequenceTitle">順番記憶</h2>
+            </div>
+            <div class="status-pills">
+              <span id="sequenceLevelLabel">3こ</span>
+              <span id="sequenceStatusLabel">スタート前</span>
+            </div>
+          </div>
+
+          <div class="memory-board" id="sequenceBoard" aria-label="順番記憶のマス"></div>
+
+          <div class="vision-actions">
+            <button id="startSequenceButton" class="primary-button" type="button">スタート</button>
+            <button id="resetSequenceButton" class="secondary-button" type="button">リセット</button>
+          </div>
+
+          <section class="coach-panel vision-result-panel" id="sequenceResultPanel" aria-label="順番記憶の記録">
+            <h3>あそび方</h3>
+            <p>光った順番を覚えて、同じ順番で押します。正解すると次は少し長くなります。</p>
+          </section>
+        </section>
+
+        <section class="screen" id="flashScreen" aria-labelledby="flashTitle">
+          <div class="vision-status">
+            <div>
+              <p class="eyebrow" id="flashPlayerLabel"></p>
+              <h2 id="flashTitle">フラッシュ記憶</h2>
+            </div>
+            <div class="status-pills">
+              <span id="flashRoundLabel">0 / 5</span>
+              <span id="flashStatusLabel">スタート前</span>
+            </div>
+          </div>
+
+          <div class="difficulty-tabs" role="tablist" aria-label="フラッシュ記憶のレベル">
+            <button class="difficulty-tab active" data-flash-level="easy" type="button">初級</button>
+            <button class="difficulty-tab" data-flash-level="normal" type="button">中級</button>
+            <button class="difficulty-tab" data-flash-level="hard" type="button">上級</button>
+          </div>
+
+          <div class="memory-board" id="flashBoard" aria-label="フラッシュ記憶のマス"></div>
+
+          <div class="vision-actions">
+            <button id="startFlashButton" class="primary-button" type="button">スタート</button>
+            <button id="resetFlashButton" class="secondary-button" type="button">リセット</button>
+          </div>
+
+          <section class="coach-panel vision-result-panel" id="flashResultPanel" aria-label="フラッシュ記憶の記録">
+            <h3>あそび方</h3>
+            <p>数字が一瞬だけ出ます。消えたあと、1から順番に場所を押します。</p>
+          </section>
+        </section>
+
         <section class="screen" id="quizScreen" aria-labelledby="quizTitle">
           <div class="quiz-status">
             <div>
@@ -236,6 +302,6 @@
       </form>
     </dialog>
 
-    <script src="./app.js?v=18" type="module"></script>
+    <script src="./app.js?v=20" type="module"></script>
   </body>
 </html>

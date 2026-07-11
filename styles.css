@@ -366,6 +366,15 @@ select {
   background: var(--pink);
 }
 
+.sequence-choice .mode-choice-icon {
+  background: var(--mint);
+  color: #123326;
+}
+
+.flash-choice .mode-choice-icon {
+  background: #8b7cff;
+}
+
 .mode-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -456,6 +465,32 @@ select {
   border: 2px solid var(--line);
   border-radius: 999px;
   font-weight: 900;
+}
+
+.difficulty-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: min(520px, 100%);
+  margin: 18px auto 0;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 2px solid rgba(230, 217, 189, 0.72);
+  border-radius: 8px;
+}
+
+.difficulty-tab {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.difficulty-tab.active {
+  background: var(--ink);
+  color: #fff;
 }
 
 .vision-status {
@@ -584,6 +619,71 @@ select {
 }
 
 .reaction-cell.miss {
+  animation: shakeCell 260ms ease both;
+  border-color: #d94b61;
+  background: #ffe6eb;
+}
+
+.memory-board {
+  width: min(520px, 100%);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(8px, 2vw, 14px);
+  aspect-ratio: 1;
+  margin: 18px auto 14px;
+  padding: clamp(8px, 2vw, 14px);
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 253, 246, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.memory-cell {
+  min-width: 0;
+  aspect-ratio: 1;
+  border: 2px solid #d7e0e9;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: clamp(1.6rem, 7vw, 3rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 8px 18px rgba(39, 49, 63, 0.09);
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease;
+}
+
+.memory-cell:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+.memory-cell:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.memory-cell.lit,
+.memory-cell.flash-show {
+  background: var(--primary);
+  border-color: #d68b00;
+  box-shadow:
+    0 10px 24px rgba(255, 176, 0, 0.35),
+    inset 0 0 0 5px rgba(255, 255, 255, 0.44);
+  opacity: 1;
+}
+
+.memory-cell.done {
+  background: #dff6ee;
+  border-color: var(--mint);
+  color: #1d6b53;
+  opacity: 0.65;
+}
+
+.memory-cell.miss {
   animation: shakeCell 260ms ease both;
   border-color: #d94b61;
   background: #ffe6eb;

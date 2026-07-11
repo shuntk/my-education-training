@@ -1,6 +1,16 @@
 const QUESTIONS_PER_RUN = 10;
 const REACTION_ROUNDS = 10;
 const REACTION_CELL_COUNT = 64;
+const SEQUENCE_CELL_COUNT = 9;
+const SEQUENCE_START_LENGTH = 3;
+const SEQUENCE_MAX_LENGTH = 8;
+const FLASH_ROUNDS = 5;
+const FLASH_CELL_COUNT = 9;
+const flashLevels = [
+  { id: "easy", label: "初級", revealMs: 1200 },
+  { id: "normal", label: "中級", revealMs: 850 },
+  { id: "hard", label: "上級", revealMs: 600 },
+];
 const STORAGE_KEY = "math10-progress-v1";
 const levels = [
   {
@@ -79,6 +89,22 @@ const state = {
   reactionTimer: null,
   reactionRunning: false,
   reactionWaiting: false,
+  sequencePattern: [],
+  sequenceInputIndex: 0,
+  sequenceLength: SEQUENCE_START_LENGTH,
+  sequenceBestLength: 0,
+  sequenceLitIndex: -1,
+  sequenceRunning: false,
+  sequenceShowing: false,
+  sequenceTimer: null,
+  flashRound: 0,
+  flashScore: 0,
+  flashTargets: [],
+  flashInputNumber: 1,
+  flashShowing: false,
+  flashRunning: false,
+  flashTimer: null,
+  flashLevel: flashLevels[0],
 };
 
 const screens = {
@@ -86,6 +112,8 @@ const screens = {
   mathHome: document.querySelector("#mathHomeScreen"),
   vision: document.querySelector("#visionScreen"),
   reaction: document.querySelector("#reactionScreen"),
+  sequence: document.querySelector("#sequenceScreen"),
+  flash: document.querySelector("#flashScreen"),
   quiz: document.querySelector("#quizScreen"),
   result: document.querySelector("#resultScreen"),
   ranking: document.querySelector("#rankingScreen"),
@@ -102,6 +130,8 @@ const els = {
   openMathButton: document.querySelector("#openMathButton"),
   openVisionButton: document.querySelector("#openVisionButton"),
   openReactionButton: document.querySelector("#openReactionButton"),
+  openSequenceButton: document.querySelector("#openSequenceButton"),
+  openFlashButton: document.querySelector("#openFlashButton"),
   levelGrid: document.querySelector("#levelGrid"),
   tabs: [...document.querySelectorAll(".tab")],
   visionPlayerLabel: document.querySelector("#visionPlayerLabel"),
@@ -117,6 +147,21 @@ const els = {
   startReactionButton: document.querySelector("#startReactionButton"),
   resetReactionButton: document.querySelector("#resetReactionButton"),
   reactionResultPanel: document.querySelector("#reactionResultPanel"),
+  sequencePlayerLabel: document.querySelector("#sequencePlayerLabel"),
+  sequenceLevelLabel: document.querySelector("#sequenceLevelLabel"),
+  sequenceStatusLabel: document.querySelector("#sequenceStatusLabel"),
+  sequenceBoard: document.querySelector("#sequenceBoard"),
+  startSequenceButton: document.querySelector("#startSequenceButton"),
+  resetSequenceButton: document.querySelector("#resetSequenceButton"),
+  sequenceResultPanel: document.querySelector("#sequenceResultPanel"),
+  flashPlayerLabel: document.querySelector("#flashPlayerLabel"),
+  flashRoundLabel: document.querySelector("#flashRoundLabel"),
+  flashStatusLabel: document.querySelector("#flashStatusLabel"),
+  flashBoard: document.querySelector("#flashBoard"),
+  flashLevelTabs: [...document.querySelectorAll(".difficulty-tab")],
+  startFlashButton: document.querySelector("#startFlashButton"),
+  resetFlashButton: document.querySelector("#resetFlashButton"),
+  flashResultPanel: document.querySelector("#flashResultPanel"),
   quizLevelLabel: document.querySelector("#quizLevelLabel"),
   questionCounter: document.querySelector("#questionCounter"),
   timerDisplay: document.querySelector("#timerDisplay"),
@@ -155,6 +200,8 @@ function init() {
   renderRankingOptions();
   resetVisionBoard();
   resetReactionGame();
+  resetSequenceGame();
+  resetFlashGame();
   wireEvents();
   renderRanking();
 
@@ -173,6 +220,14 @@ function wireEvents() {
   els.openReactionButton.addEventListener("click", () => {
     resetReactionGame();
     showScreen("reaction");
+  });
+  els.openSequenceButton.addEventListener("click", () => {
+    resetSequenceGame();
+    showScreen("sequence");
+  });
+  els.openFlashButton.addEventListener("click", () => {
+    resetFlashGame();
+    showScreen("flash");
   });
   els.soundButton.addEventListener("click", () => {
     state.sound = !state.sound;
@@ -220,6 +275,18 @@ function wireEvents() {
   els.resetVisionButton.addEventListener("click", resetVisionBoard);
   els.startReactionButton.addEventListener("click", startReactionGame);
   els.resetReactionButton.addEventListener("click", resetReactionGame);
+  els.startSequenceButton.addEventListener("click", startSequenceGame);
+  els.resetSequenceButton.addEventListener("click", resetSequenceGame);
+  els.startFlashButton.addEventListener("click", startFlashGame);
+  els.resetFlashButton.addEventListener("click", resetFlashGame);
+  els.flashLevelTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      if (state.flashRunning) return;
+      state.flashLevel = flashLevels.find((level) => level.id === tab.dataset.flashLevel) || flashLevels[0];
+      els.flashLevelTabs.forEach((item) => item.classList.toggle("active", item === tab));
+      resetFlashGame();
+    });
+  });
   renderKeypad();
 }
 
@@ -255,6 +322,8 @@ function renderPlayers() {
   els.playerSelect.value = state.data.currentPlayerId;
   renderVisionLabels();
   renderReactionLabels();
+  renderSequenceLabels();
+  renderFlashLabels();
 }
 
 function addPlayer() {
@@ -272,6 +341,8 @@ function addPlayerByName(rawName) {
   renderLevels();
   renderVisionLabels();
   renderReactionLabels();
+  renderSequenceLabels();
+  renderFlashLabels();
   if (typeof els.playerDialog.close === "function" && els.playerDialog.open) {
     els.playerDialog.close();
   }
@@ -318,6 +389,18 @@ function renderRankingOptions() {
   reactionOption.value = "reaction-tap:reaction";
   reactionOption.textContent = "反射タップ・平均タイム";
   els.rankingLevelSelect.append(reactionOption);
+
+  const sequenceOption = document.createElement("option");
+  sequenceOption.value = "sequence-memory:sequence";
+  sequenceOption.textContent = "順番記憶・最高の長さ";
+  els.rankingLevelSelect.append(sequenceOption);
+
+  flashLevels.forEach((level) => {
+    const flashOption = document.createElement("option");
+    flashOption.value = `flash-memory-${level.id}:flash`;
+    flashOption.textContent = `フラッシュ記憶${level.label}・正解数`;
+    els.rankingLevelSelect.append(flashOption);
+  });
 }
 
 function startQuiz(levelId) {
@@ -1054,6 +1137,7 @@ function resetVisionBoard() {
 }
 
 function startVision() {
+  state.visionNumbers = shuffle(Array.from({ length: 25 }, (_, index) => index + 1));
   state.visionNext = 1;
   state.visionStartedAt = performance.now();
   state.visionElapsedMs = 0;
@@ -1074,10 +1158,11 @@ function renderVisionBoard() {
     const button = document.createElement("button");
     button.className = "vision-cell";
     button.type = "button";
-    button.textContent = number;
+    button.textContent = state.visionRunning || number < state.visionNext ? number : "";
     button.dataset.number = String(number);
     button.disabled = !state.visionRunning;
     button.setAttribute("aria-label", `${number}`);
+    if (!state.visionRunning) button.classList.add("hidden-number");
     if (number < state.visionNext) button.classList.add("done");
     button.addEventListener("click", () => pressVisionNumber(number, button));
     els.visionBoard.append(button);
@@ -1310,6 +1395,309 @@ function renderReactionResult(seconds, isNewRecord, previous) {
   `;
 }
 
+function resetSequenceGame() {
+  clearTimeout(state.sequenceTimer);
+  state.sequencePattern = [];
+  state.sequenceInputIndex = 0;
+  state.sequenceLength = SEQUENCE_START_LENGTH;
+  state.sequenceBestLength = 0;
+  state.sequenceLitIndex = -1;
+  state.sequenceRunning = false;
+  state.sequenceShowing = false;
+  els.startSequenceButton.disabled = false;
+  els.startSequenceButton.textContent = "スタート";
+  els.resetSequenceButton.disabled = false;
+  renderSequenceLabels();
+  renderSequenceBoard();
+  renderSequenceIntro();
+}
+
+function startSequenceGame() {
+  clearTimeout(state.sequenceTimer);
+  state.sequenceLength = SEQUENCE_START_LENGTH;
+  state.sequenceBestLength = 0;
+  state.sequenceRunning = true;
+  els.startSequenceButton.disabled = true;
+  els.startSequenceButton.textContent = "チャレンジ中";
+  nextSequenceRound();
+}
+
+function nextSequenceRound() {
+  state.sequencePattern = [];
+  for (let i = 0; i < state.sequenceLength; i += 1) {
+    let next = rand(0, SEQUENCE_CELL_COUNT - 1);
+    while (next === state.sequencePattern[i - 1]) {
+      next = rand(0, SEQUENCE_CELL_COUNT - 1);
+    }
+    state.sequencePattern.push(next);
+  }
+  state.sequenceInputIndex = 0;
+  state.sequenceShowing = true;
+  state.sequenceLitIndex = -1;
+  renderSequenceLabels();
+  renderSequenceBoard();
+  showSequenceStep(0);
+}
+
+function showSequenceStep(stepIndex) {
+  if (!state.sequenceRunning) return;
+  if (stepIndex >= state.sequencePattern.length) {
+    state.sequenceLitIndex = -1;
+    state.sequenceShowing = false;
+    renderSequenceLabels();
+    renderSequenceBoard();
+    return;
+  }
+
+  state.sequenceLitIndex = state.sequencePattern[stepIndex];
+  renderSequenceBoard();
+  state.sequenceTimer = setTimeout(() => {
+    state.sequenceLitIndex = -1;
+    renderSequenceBoard();
+    state.sequenceTimer = setTimeout(() => showSequenceStep(stepIndex + 1), 170);
+  }, 520);
+}
+
+function renderSequenceBoard() {
+  els.sequenceBoard.innerHTML = "";
+  for (let index = 0; index < SEQUENCE_CELL_COUNT; index += 1) {
+    const button = document.createElement("button");
+    button.className = "memory-cell";
+    button.type = "button";
+    button.dataset.index = String(index);
+    button.disabled = !state.sequenceRunning || state.sequenceShowing;
+    button.setAttribute("aria-label", `マス ${index + 1}`);
+    if (state.sequenceLitIndex === index) button.classList.add("lit");
+    button.addEventListener("click", () => pressSequenceCell(index, button));
+    els.sequenceBoard.append(button);
+  }
+}
+
+function pressSequenceCell(index, button) {
+  if (!state.sequenceRunning || state.sequenceShowing) return;
+  if (index !== state.sequencePattern[state.sequenceInputIndex]) {
+    button.classList.add("miss");
+    playWrongSound();
+    finishSequenceGame(false);
+    return;
+  }
+
+  button.classList.add("done");
+  playCorrectSound();
+  state.sequenceInputIndex += 1;
+  if (state.sequenceInputIndex < state.sequencePattern.length) {
+    return;
+  }
+
+  state.sequenceBestLength = Math.max(state.sequenceBestLength, state.sequenceLength);
+  if (state.sequenceLength >= SEQUENCE_MAX_LENGTH) {
+    finishSequenceGame(true);
+    return;
+  }
+
+  state.sequenceLength += 1;
+  renderSequenceLabels();
+  els.sequenceResultPanel.innerHTML = "<h3>いいね！</h3><p>次は少し長い順番です。</p>";
+  state.sequenceTimer = setTimeout(nextSequenceRound, 850);
+}
+
+function finishSequenceGame(clearedMax) {
+  clearTimeout(state.sequenceTimer);
+  state.sequenceRunning = false;
+  state.sequenceShowing = false;
+  state.sequenceLitIndex = -1;
+  const score = state.sequenceBestLength;
+  const previous = bestSequenceRecord(state.data.currentPlayerId);
+  const isNewRecord = !previous || score > previous.score;
+  const record = {
+    id: createId(),
+    playerId: state.data.currentPlayerId,
+    playerName: currentPlayer().name,
+    levelId: "sequence-memory",
+    mode: "sequence",
+    score,
+    seconds: 0,
+    createdAt: new Date().toISOString(),
+  };
+  if (score > 0) {
+    state.data.records.push(record);
+    saveData();
+  }
+  els.startSequenceButton.disabled = false;
+  els.startSequenceButton.textContent = "もういちど";
+  renderSequenceLabels();
+  renderSequenceBoard();
+  renderSequenceResult(score, isNewRecord, previous, clearedMax);
+  renderRanking();
+  if (score > 0 && isNewRecord) celebrate();
+}
+
+function renderSequenceLabels() {
+  const player = currentPlayer();
+  const best = bestSequenceRecord(state.data.currentPlayerId);
+  els.sequencePlayerLabel.textContent = `${player ? player.name : ""} / ベスト ${best ? `${best.score}こ` : "まだ記録なし"}`;
+  els.sequenceLevelLabel.textContent = `${state.sequenceLength}こ`;
+  els.sequenceStatusLabel.textContent = state.sequenceShowing ? "見て覚える" : state.sequenceRunning ? "順番に押す" : "スタート前";
+}
+
+function renderSequenceIntro() {
+  const best = bestSequenceRecord(state.data.currentPlayerId);
+  els.sequenceResultPanel.innerHTML = `
+    <h3>${best ? "ベスト" : "あそび方"}</h3>
+    <p>${best ? `${currentPlayer().name}のベストは ${best.score}こ です。` : "光った順番を覚えて、同じ順番で押します。正解すると次は少し長くなります。"}</p>
+  `;
+}
+
+function renderSequenceResult(score, isNewRecord, previous, clearedMax) {
+  const title = isNewRecord && score > 0 ? "New Record!" : clearedMax ? "クリア！" : "そこまで！";
+  const detail = score > 0
+    ? `${score}こまで覚えました。${isNewRecord ? "自分のベストを更新しました。" : previous ? `ベストは ${previous.score}こ です。` : ""}`
+    : "まずは3この順番から、もう一度やってみよう。";
+  els.sequenceResultPanel.innerHTML = `<h3>${title}</h3><p>${detail}</p>`;
+}
+
+function resetFlashGame() {
+  clearTimeout(state.flashTimer);
+  state.flashRound = 0;
+  state.flashScore = 0;
+  state.flashTargets = [];
+  state.flashInputNumber = 1;
+  state.flashShowing = false;
+  state.flashRunning = false;
+  els.startFlashButton.disabled = false;
+  els.startFlashButton.textContent = "スタート";
+  els.resetFlashButton.disabled = false;
+  renderFlashLabels();
+  renderFlashBoard();
+  renderFlashIntro();
+}
+
+function startFlashGame() {
+  clearTimeout(state.flashTimer);
+  state.flashRound = 0;
+  state.flashScore = 0;
+  state.flashRunning = true;
+  els.startFlashButton.disabled = true;
+  els.startFlashButton.textContent = "チャレンジ中";
+  nextFlashRound();
+}
+
+function nextFlashRound() {
+  state.flashRound += 1;
+  state.flashInputNumber = 1;
+  const count = Math.min(3 + state.flashRound, FLASH_CELL_COUNT);
+  const cells = shuffle(Array.from({ length: FLASH_CELL_COUNT }, (_, index) => index)).slice(0, count);
+  state.flashTargets = cells.map((cell, index) => ({ cell, number: index + 1 }));
+  state.flashShowing = true;
+  renderFlashLabels();
+  renderFlashBoard();
+  state.flashTimer = setTimeout(() => {
+    state.flashShowing = false;
+    renderFlashLabels();
+    renderFlashBoard();
+  }, state.flashLevel.revealMs);
+}
+
+function renderFlashBoard() {
+  els.flashBoard.innerHTML = "";
+  for (let index = 0; index < FLASH_CELL_COUNT; index += 1) {
+    const target = state.flashTargets.find((item) => item.cell === index);
+    const button = document.createElement("button");
+    button.className = "memory-cell flash-cell";
+    button.type = "button";
+    button.dataset.index = String(index);
+    button.disabled = !state.flashRunning || state.flashShowing;
+    button.setAttribute("aria-label", `マス ${index + 1}`);
+    if (target && state.flashShowing) {
+      button.textContent = target.number;
+      button.classList.add("flash-show");
+    }
+    if (target && target.number < state.flashInputNumber && !state.flashShowing) button.classList.add("done");
+    button.addEventListener("click", () => pressFlashCell(index, button));
+    els.flashBoard.append(button);
+  }
+}
+
+function pressFlashCell(index, button) {
+  if (!state.flashRunning || state.flashShowing) return;
+  const target = state.flashTargets.find((item) => item.number === state.flashInputNumber);
+  if (!target || target.cell !== index) {
+    button.classList.add("miss");
+    playWrongSound();
+    finishFlashGame();
+    return;
+  }
+
+  button.classList.add("done");
+  playCorrectSound();
+  state.flashInputNumber += 1;
+  if (state.flashInputNumber <= state.flashTargets.length) {
+    renderFlashLabels();
+    renderFlashBoard();
+    return;
+  }
+
+  state.flashScore += 1;
+  if (state.flashRound >= FLASH_ROUNDS) {
+    finishFlashGame();
+  } else {
+    els.flashResultPanel.innerHTML = "<h3>正解！</h3><p>次は数字が少し増えます。</p>";
+    state.flashTimer = setTimeout(nextFlashRound, 850);
+  }
+}
+
+function finishFlashGame() {
+  clearTimeout(state.flashTimer);
+  state.flashRunning = false;
+  state.flashShowing = false;
+  const previous = bestFlashRecord(state.data.currentPlayerId);
+  const isNewRecord = !previous || state.flashScore > previous.score;
+  const record = {
+    id: createId(),
+    playerId: state.data.currentPlayerId,
+    playerName: currentPlayer().name,
+    levelId: flashLevelRecordId(state.flashLevel.id),
+    mode: "flash",
+    score: state.flashScore,
+    seconds: 0,
+    createdAt: new Date().toISOString(),
+  };
+  if (state.flashScore > 0) {
+    state.data.records.push(record);
+    saveData();
+  }
+  els.startFlashButton.disabled = false;
+  els.startFlashButton.textContent = "もういちど";
+  renderFlashLabels();
+  renderFlashBoard();
+  renderFlashResult(state.flashScore, isNewRecord, previous);
+  renderRanking();
+  if (state.flashScore > 0 && isNewRecord) celebrate();
+}
+
+function renderFlashLabels() {
+  const player = currentPlayer();
+  const best = bestFlashRecord(state.data.currentPlayerId);
+  els.flashPlayerLabel.textContent = `${player ? player.name : ""} / ${state.flashLevel.label} / ベスト ${best ? `${best.score}/${FLASH_ROUNDS}` : "まだ記録なし"}`;
+  els.flashRoundLabel.textContent = `${state.flashRound} / ${FLASH_ROUNDS}`;
+  els.flashStatusLabel.textContent = state.flashShowing ? "見て覚える" : state.flashRunning ? `${state.flashInputNumber}から押す` : "スタート前";
+}
+
+function renderFlashIntro() {
+  const best = bestFlashRecord(state.data.currentPlayerId);
+  els.flashResultPanel.innerHTML = `
+    <h3>${best ? `${state.flashLevel.label}のベスト` : "あそび方"}</h3>
+    <p>${best ? `${currentPlayer().name}の${state.flashLevel.label}ベストは ${best.score}/${FLASH_ROUNDS} です。` : "数字が一瞬だけ出ます。消えたあと、1から順番に場所を押します。中級・上級は表示時間が短くなります。"}</p>
+  `;
+}
+
+function renderFlashResult(score, isNewRecord, previous) {
+  els.flashResultPanel.innerHTML = `
+    <h3>${isNewRecord ? "New Record!" : "おしまい！"}</h3>
+    <p>${score}/${FLASH_ROUNDS} 正解。${isNewRecord ? "自分のベストを更新しました。" : previous ? `ベストは ${previous.score}/${FLASH_ROUNDS} です。` : ""}</p>
+  `;
+}
+
 function renderResult(score, seconds, isNewRecord) {
   els.resultPlayer.textContent = `${currentPlayer().name} / ${state.currentLevel.title} / ${modeLabel(state.mode)}`;
   els.resultTitle.textContent = isNewRecord ? "New Record!" : "できた！";
@@ -1354,9 +1742,30 @@ function bestReactionRecord(playerId) {
     .sort((a, b) => a.seconds - b.seconds)[0];
 }
 
+function bestSequenceRecord(playerId) {
+  return state.data.records
+    .filter((record) => record.levelId === "sequence-memory" && record.mode === "sequence" && record.playerId === playerId)
+    .sort(compareScoreRecords)[0];
+}
+
+function bestFlashRecord(playerId) {
+  return state.data.records
+    .filter((record) => record.levelId === flashLevelRecordId(state.flashLevel.id) && record.mode === "flash" && record.playerId === playerId)
+    .sort(compareScoreRecords)[0];
+}
+
+function flashLevelRecordId(levelId) {
+  return `flash-memory-${levelId}`;
+}
+
 function compareRecords(a, b) {
   if (b.score !== a.score) return b.score - a.score;
   return a.seconds - b.seconds;
+}
+
+function compareScoreRecords(a, b) {
+  if (b.score !== a.score) return b.score - a.score;
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }
 
 function renderRanking() {
@@ -1364,7 +1773,7 @@ function renderRanking() {
   const recordsByPlayer = new Map();
   state.data.records
     .filter((record) => record.levelId === levelId && record.mode === mode)
-    .sort(["vision", "reaction"].includes(mode) ? (a, b) => a.seconds - b.seconds : compareRecords)
+    .sort(["vision", "reaction"].includes(mode) ? (a, b) => a.seconds - b.seconds : ["sequence", "flash"].includes(mode) ? compareScoreRecords : compareRecords)
     .forEach((record) => {
       if (!recordsByPlayer.has(record.playerId)) recordsByPlayer.set(record.playerId, record);
     });
@@ -1383,10 +1792,17 @@ function renderRanking() {
         <strong>${record.playerName}</strong>
         <p>${new Date(record.createdAt).toLocaleDateString("ja-JP")}</p>
       </div>
-      <span class="rank-score">${["vision", "reaction"].includes(mode) ? formatSeconds(record.seconds) : `${record.score}/10・${formatTime(record.seconds)}`}</span>
+      <span class="rank-score">${rankingScoreLabel(record, mode)}</span>
     `;
     els.rankingList.append(row);
   });
+}
+
+function rankingScoreLabel(record, mode) {
+  if (["vision", "reaction"].includes(mode)) return formatSeconds(record.seconds);
+  if (mode === "sequence") return `${record.score}こ`;
+  if (mode === "flash") return `${record.score}/${FLASH_ROUNDS}`;
+  return `${record.score}/10・${formatTime(record.seconds)}`;
 }
 
 function renderKeypad() {
@@ -1425,6 +1841,16 @@ function showScreen(name) {
     state.reactionRunning = false;
     state.reactionWaiting = false;
   }
+  if (name !== "sequence") {
+    clearTimeout(state.sequenceTimer);
+    state.sequenceRunning = false;
+    state.sequenceShowing = false;
+  }
+  if (name !== "flash") {
+    clearTimeout(state.flashTimer);
+    state.flashRunning = false;
+    state.flashShowing = false;
+  }
   Object.entries(screens).forEach(([key, screen]) => {
     screen.classList.toggle("active", key === name);
   });
@@ -1434,6 +1860,8 @@ function showScreen(name) {
     mathHome: ["1・2年生のさんすう", "さんすう10もんチャレンジ"],
     vision: ["数字タップ", "1から25チャレンジ"],
     reaction: ["反射タップ", "光ったマスをタップ"],
+    sequence: ["順番記憶", "光った順番を覚える"],
+    flash: ["フラッシュ記憶", "一瞬の数字を覚える"],
     quiz: ["1・2年生のさんすう", "さんすう10もんチャレンジ"],
     result: ["1・2年生のさんすう", "できた！"],
     ranking: ["きろく", "ランキング"],
