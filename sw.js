@@ -1,9 +1,9 @@
-const CACHE_NAME = "math10-v15";
+const CACHE_NAME = "learning-training-v18";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=15",
-  "./app.js?v=15",
+  "./styles.css?v=18",
+  "./app.js?v=18",
   "./manifest.webmanifest",
   "./icon.svg",
 ];

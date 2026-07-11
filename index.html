@@ -4,9 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#ffd56a" />
-    <title>さんすう10もんチャレンジ</title>
+    <title>まなびトレーニング</title>
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=15" />
+    <link rel="stylesheet" href="./styles.css?v=18" />
   </head>
   <body>
     <div class="app-shell">
@@ -15,8 +15,8 @@
           <span aria-hidden="true">⌂</span>
         </button>
         <div>
-          <p class="eyebrow">1・2年生のさんすう</p>
-          <h1>さんすう10もんチャレンジ</h1>
+          <p class="eyebrow" id="topEyebrow">まなびトレーニング</p>
+          <h1 id="topTitle">きょうのチャレンジ</h1>
         </div>
         <button class="icon-button" id="soundButton" type="button" aria-label="音のオンオフ">
           <span aria-hidden="true">♪</span>
@@ -29,7 +29,7 @@
             <div class="hero-copy">
               <h2 id="homeTitle">きょうは、どの力をのばす？</h2>
               <p>
-                10問をテンポよく解いて、正解数と時間を記録します。
+                さんすうの正確さ、目で探す速さ、どちらも短い時間で遊ぶように練習できます。
                 新記録のときは紙ふぶきでお祝いします。
               </p>
               <div class="profile-picker">
@@ -58,6 +58,42 @@
             </div>
           </div>
 
+          <div class="mode-choice-grid" aria-label="モード選択">
+            <button class="mode-choice-card math-choice" id="openMathButton" type="button">
+              <span class="mode-choice-icon" aria-hidden="true">＋</span>
+              <strong>1・2年生のさんすう</strong>
+              <span>たし算・ひき算を10問。正確さとテンポを育てます。</span>
+            </button>
+            <button class="mode-choice-card vision-choice" id="openVisionButton" type="button">
+              <span class="mode-choice-icon" aria-hidden="true">25</span>
+              <strong>数字タップ</strong>
+              <span>1から25までを順番に見つけてタップ。ベストタイムに挑戦します。</span>
+            </button>
+            <button class="mode-choice-card reaction-choice" id="openReactionButton" type="button">
+              <span class="mode-choice-icon" aria-hidden="true">●</span>
+              <strong>反射タップ</strong>
+              <span>光ったマスをすばやくタップ。平均反応タイムに挑戦します。</span>
+            </button>
+          </div>
+
+          <section class="coach-panel" aria-label="おすすめゲーム">
+            <h3>ほかのおすすめ</h3>
+            <ul>
+              <li>光った順番をまねして押す「順番記憶」。見る力と短期記憶を一緒に使います。</li>
+              <li>一瞬だけ出る数字や形を覚える「フラッシュ記憶」。集中して見る練習に向いています。</li>
+              <li>中央を見たまま端の色を答える「横目カラー」。周辺視野の練習に向いています。</li>
+            </ul>
+          </section>
+        </section>
+
+        <section class="screen" id="mathHomeScreen" aria-labelledby="mathHomeTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">1・2年生のさんすう</p>
+              <h2 id="mathHomeTitle">さんすう10もんチャレンジ</h2>
+            </div>
+          </div>
+
           <div class="mode-tabs" role="tablist" aria-label="問題の種類">
             <button class="tab active" data-mode="mix" type="button">ミックス</button>
             <button class="tab" data-mode="add" type="button">たし算</button>
@@ -73,6 +109,57 @@
               <li>まちがえた問題は最後に見直せます。責めずに作戦を一緒に探せます。</li>
               <li>新記録は同じレベル内だけで判定します。比べる相手は昨日の自分です。</li>
             </ul>
+          </section>
+        </section>
+
+        <section class="screen" id="visionScreen" aria-labelledby="visionTitle">
+          <div class="vision-status">
+            <div>
+              <p class="eyebrow" id="visionPlayerLabel"></p>
+              <h2 id="visionTitle">数字タップ</h2>
+            </div>
+            <div class="status-pills">
+              <span id="visionTimerDisplay">0.0秒</span>
+            </div>
+          </div>
+
+          <div class="vision-board-wrap">
+            <div class="vision-board" id="visionBoard" aria-label="1から25までの数字"></div>
+          </div>
+
+          <div class="vision-actions">
+            <button id="startVisionButton" class="primary-button" type="button">スタート</button>
+            <button id="resetVisionButton" class="secondary-button" type="button">ならべかえ</button>
+          </div>
+
+          <section class="coach-panel vision-result-panel" id="visionResultPanel" aria-label="数字タップの記録">
+            <h3>あそび方</h3>
+            <p>まん中あたりを見ながら、1から25まで順番に押します。押し間違えても続けられます。</p>
+          </section>
+        </section>
+
+        <section class="screen" id="reactionScreen" aria-labelledby="reactionTitle">
+          <div class="vision-status">
+            <div>
+              <p class="eyebrow" id="reactionPlayerLabel"></p>
+              <h2 id="reactionTitle">反射タップ</h2>
+            </div>
+            <div class="status-pills">
+              <span id="reactionRoundLabel">0 / 10</span>
+              <span id="reactionTimerDisplay">平均 0.0秒</span>
+            </div>
+          </div>
+
+          <div class="reaction-board" id="reactionBoard" aria-label="反射タップのマス"></div>
+
+          <div class="vision-actions">
+            <button id="startReactionButton" class="primary-button" type="button">スタート</button>
+            <button id="resetReactionButton" class="secondary-button" type="button">リセット</button>
+          </div>
+
+          <section class="coach-panel vision-result-panel" id="reactionResultPanel" aria-label="反射タップの記録">
+            <h3>あそび方</h3>
+            <p>光ったマスをできるだけ早く押します。10回の平均タイムを記録します。</p>
           </section>
         </section>
 
@@ -149,6 +236,6 @@
       </form>
     </dialog>
 
-    <script src="./app.js?v=15" type="module"></script>
+    <script src="./app.js?v=18" type="module"></script>
   </body>
 </html>

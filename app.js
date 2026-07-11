@@ -1,4 +1,6 @@
 const QUESTIONS_PER_RUN = 10;
+const REACTION_ROUNDS = 10;
+const REACTION_CELL_COUNT = 64;
 const STORAGE_KEY = "math10-progress-v1";
 const levels = [
   {
@@ -64,10 +66,26 @@ const state = {
   timer: null,
   acceptingAnswer: false,
   sound: true,
+  visionNumbers: [],
+  visionNext: 1,
+  visionStartedAt: 0,
+  visionElapsedMs: 0,
+  visionTimer: null,
+  visionRunning: false,
+  reactionRound: 0,
+  reactionTotalMs: 0,
+  reactionLitIndex: -1,
+  reactionCueAt: 0,
+  reactionTimer: null,
+  reactionRunning: false,
+  reactionWaiting: false,
 };
 
 const screens = {
   home: document.querySelector("#homeScreen"),
+  mathHome: document.querySelector("#mathHomeScreen"),
+  vision: document.querySelector("#visionScreen"),
+  reaction: document.querySelector("#reactionScreen"),
   quiz: document.querySelector("#quizScreen"),
   result: document.querySelector("#resultScreen"),
   ranking: document.querySelector("#rankingScreen"),
@@ -75,12 +93,30 @@ const screens = {
 
 const els = {
   homeButton: document.querySelector("#homeButton"),
+  topEyebrow: document.querySelector("#topEyebrow"),
+  topTitle: document.querySelector("#topTitle"),
   soundButton: document.querySelector("#soundButton"),
   playerSelect: document.querySelector("#playerSelect"),
   addPlayerButton: document.querySelector("#addPlayerButton"),
   openRankingButton: document.querySelector("#openRankingButton"),
+  openMathButton: document.querySelector("#openMathButton"),
+  openVisionButton: document.querySelector("#openVisionButton"),
+  openReactionButton: document.querySelector("#openReactionButton"),
   levelGrid: document.querySelector("#levelGrid"),
   tabs: [...document.querySelectorAll(".tab")],
+  visionPlayerLabel: document.querySelector("#visionPlayerLabel"),
+  visionTimerDisplay: document.querySelector("#visionTimerDisplay"),
+  visionBoard: document.querySelector("#visionBoard"),
+  startVisionButton: document.querySelector("#startVisionButton"),
+  resetVisionButton: document.querySelector("#resetVisionButton"),
+  visionResultPanel: document.querySelector("#visionResultPanel"),
+  reactionPlayerLabel: document.querySelector("#reactionPlayerLabel"),
+  reactionRoundLabel: document.querySelector("#reactionRoundLabel"),
+  reactionTimerDisplay: document.querySelector("#reactionTimerDisplay"),
+  reactionBoard: document.querySelector("#reactionBoard"),
+  startReactionButton: document.querySelector("#startReactionButton"),
+  resetReactionButton: document.querySelector("#resetReactionButton"),
+  reactionResultPanel: document.querySelector("#reactionResultPanel"),
   quizLevelLabel: document.querySelector("#quizLevelLabel"),
   questionCounter: document.querySelector("#questionCounter"),
   timerDisplay: document.querySelector("#timerDisplay"),
@@ -117,6 +153,8 @@ function init() {
   renderPlayers();
   renderLevels();
   renderRankingOptions();
+  resetVisionBoard();
+  resetReactionGame();
   wireEvents();
   renderRanking();
 
@@ -127,6 +165,15 @@ function init() {
 
 function wireEvents() {
   els.homeButton.addEventListener("click", () => showScreen("home"));
+  els.openMathButton.addEventListener("click", () => showScreen("mathHome"));
+  els.openVisionButton.addEventListener("click", () => {
+    resetVisionBoard();
+    showScreen("vision");
+  });
+  els.openReactionButton.addEventListener("click", () => {
+    resetReactionGame();
+    showScreen("reaction");
+  });
   els.soundButton.addEventListener("click", () => {
     state.sound = !state.sound;
     els.soundButton.style.opacity = state.sound ? "1" : "0.45";
@@ -169,6 +216,10 @@ function wireEvents() {
     showScreen("ranking");
   });
   els.rankingLevelSelect.addEventListener("change", renderRanking);
+  els.startVisionButton.addEventListener("click", startVision);
+  els.resetVisionButton.addEventListener("click", resetVisionBoard);
+  els.startReactionButton.addEventListener("click", startReactionGame);
+  els.resetReactionButton.addEventListener("click", resetReactionGame);
   renderKeypad();
 }
 
@@ -202,6 +253,8 @@ function renderPlayers() {
     els.playerSelect.append(option);
   });
   els.playerSelect.value = state.data.currentPlayerId;
+  renderVisionLabels();
+  renderReactionLabels();
 }
 
 function addPlayer() {
@@ -217,6 +270,8 @@ function addPlayerByName(rawName) {
   saveData();
   renderPlayers();
   renderLevels();
+  renderVisionLabels();
+  renderReactionLabels();
   if (typeof els.playerDialog.close === "function" && els.playerDialog.open) {
     els.playerDialog.close();
   }
@@ -254,6 +309,15 @@ function renderRankingOptions() {
       els.rankingLevelSelect.append(option);
     });
   });
+  const visionOption = document.createElement("option");
+  visionOption.value = "vision-grid:vision";
+  visionOption.textContent = "数字タップ・1から25";
+  els.rankingLevelSelect.append(visionOption);
+
+  const reactionOption = document.createElement("option");
+  reactionOption.value = "reaction-tap:reaction";
+  reactionOption.textContent = "反射タップ・平均タイム";
+  els.rankingLevelSelect.append(reactionOption);
 }
 
 function startQuiz(levelId) {
@@ -974,6 +1038,278 @@ function finishQuiz() {
   showScreen("result");
 }
 
+function resetVisionBoard() {
+  clearInterval(state.visionTimer);
+  state.visionNumbers = shuffle(Array.from({ length: 25 }, (_, index) => index + 1));
+  state.visionNext = 1;
+  state.visionStartedAt = 0;
+  state.visionElapsedMs = 0;
+  state.visionRunning = false;
+  els.startVisionButton.disabled = false;
+  els.startVisionButton.textContent = "スタート";
+  els.resetVisionButton.disabled = false;
+  renderVisionLabels();
+  renderVisionBoard();
+  renderVisionIntro();
+}
+
+function startVision() {
+  state.visionNext = 1;
+  state.visionStartedAt = performance.now();
+  state.visionElapsedMs = 0;
+  state.visionRunning = true;
+  els.startVisionButton.disabled = true;
+  els.startVisionButton.textContent = "チャレンジ中";
+  els.resetVisionButton.disabled = true;
+  renderVisionLabels();
+  renderVisionBoard();
+  updateVisionTimer();
+  clearInterval(state.visionTimer);
+  state.visionTimer = setInterval(updateVisionTimer, 100);
+}
+
+function renderVisionBoard() {
+  els.visionBoard.innerHTML = "";
+  state.visionNumbers.forEach((number) => {
+    const button = document.createElement("button");
+    button.className = "vision-cell";
+    button.type = "button";
+    button.textContent = number;
+    button.dataset.number = String(number);
+    button.disabled = !state.visionRunning;
+    button.setAttribute("aria-label", `${number}`);
+    if (number < state.visionNext) button.classList.add("done");
+    button.addEventListener("click", () => pressVisionNumber(number, button));
+    els.visionBoard.append(button);
+  });
+}
+
+function pressVisionNumber(number, button) {
+  if (!state.visionRunning) return;
+  if (number !== state.visionNext) {
+    button.classList.remove("miss");
+    void button.offsetWidth;
+    button.classList.add("miss");
+    playWrongSound();
+    return;
+  }
+
+  button.classList.add("done");
+  playCorrectSound();
+  state.visionNext += 1;
+  if (state.visionNext > 25) {
+    finishVision();
+    return;
+  }
+  renderVisionLabels();
+  renderVisionBoard();
+}
+
+function finishVision() {
+  clearInterval(state.visionTimer);
+  state.visionElapsedMs = performance.now() - state.visionStartedAt;
+  state.visionRunning = false;
+  const seconds = Math.max(0.1, Math.round(state.visionElapsedMs / 100) / 10);
+  const previous = bestVisionRecord(state.data.currentPlayerId);
+  const isNewRecord = !previous || seconds < previous.seconds;
+  const record = {
+    id: createId(),
+    playerId: state.data.currentPlayerId,
+    playerName: currentPlayer().name,
+    levelId: "vision-grid",
+    mode: "vision",
+    score: 25,
+    seconds,
+    createdAt: new Date().toISOString(),
+  };
+  state.data.records.push(record);
+  saveData();
+  els.startVisionButton.disabled = false;
+  els.startVisionButton.textContent = "もういちど";
+  els.resetVisionButton.disabled = false;
+  renderVisionLabels();
+  renderVisionBoard();
+  renderVisionResult(seconds, isNewRecord, previous);
+  renderRanking();
+  if (isNewRecord) celebrate();
+}
+
+function renderVisionLabels() {
+  const player = currentPlayer();
+  const best = bestVisionRecord(state.data.currentPlayerId);
+  els.visionPlayerLabel.textContent = `${player ? player.name : ""} / ベスト ${best ? formatSeconds(best.seconds) : "まだ記録なし"}`;
+  updateVisionTimer();
+}
+
+function renderVisionIntro() {
+  const best = bestVisionRecord(state.data.currentPlayerId);
+  els.visionResultPanel.innerHTML = `
+    <h3>${best ? "ベストタイム" : "あそび方"}</h3>
+    <p>${
+      best
+        ? `${currentPlayer().name}のベストは ${formatSeconds(best.seconds)} です。まん中あたりを見ながら数字を探してみよう。`
+        : "まん中あたりを見ながら、1から25まで順番に押します。押し間違えても続けられます。"
+    }</p>
+  `;
+}
+
+function renderVisionResult(seconds, isNewRecord, previous) {
+  els.visionResultPanel.innerHTML = `
+    <h3>${isNewRecord ? "New Record!" : "ゴール！"}</h3>
+    <p>${formatSeconds(seconds)}でクリア。${isNewRecord ? "自分のベストを更新しました。" : `ベストは ${formatSeconds(previous.seconds)} です。`}</p>
+  `;
+}
+
+function updateVisionTimer() {
+  const elapsed = state.visionRunning ? performance.now() - state.visionStartedAt : state.visionElapsedMs;
+  els.visionTimerDisplay.textContent = formatSeconds(Math.round(elapsed / 100) / 10);
+}
+
+function resetReactionGame() {
+  clearTimeout(state.reactionTimer);
+  state.reactionRound = 0;
+  state.reactionTotalMs = 0;
+  state.reactionLitIndex = -1;
+  state.reactionCueAt = 0;
+  state.reactionRunning = false;
+  state.reactionWaiting = false;
+  els.startReactionButton.disabled = false;
+  els.startReactionButton.textContent = "スタート";
+  els.resetReactionButton.disabled = false;
+  renderReactionLabels();
+  renderReactionBoard();
+  renderReactionIntro();
+}
+
+function startReactionGame() {
+  clearTimeout(state.reactionTimer);
+  state.reactionRound = 0;
+  state.reactionTotalMs = 0;
+  state.reactionLitIndex = -1;
+  state.reactionCueAt = 0;
+  state.reactionRunning = true;
+  state.reactionWaiting = false;
+  els.startReactionButton.disabled = true;
+  els.startReactionButton.textContent = "チャレンジ中";
+  els.resetReactionButton.disabled = false;
+  renderReactionLabels();
+  renderReactionBoard();
+  queueReactionCue();
+}
+
+function queueReactionCue() {
+  if (!state.reactionRunning) return;
+  state.reactionWaiting = true;
+  state.reactionLitIndex = -1;
+  renderReactionBoard();
+  const delay = rand(650, 1450);
+  state.reactionTimer = setTimeout(showReactionCue, delay);
+}
+
+function showReactionCue() {
+  if (!state.reactionRunning) return;
+  state.reactionWaiting = false;
+  state.reactionLitIndex = rand(0, REACTION_CELL_COUNT - 1);
+  state.reactionCueAt = performance.now();
+  renderReactionLabels();
+  renderReactionBoard();
+  playCorrectSound();
+}
+
+function renderReactionBoard() {
+  els.reactionBoard.innerHTML = "";
+  for (let index = 0; index < REACTION_CELL_COUNT; index += 1) {
+    const button = document.createElement("button");
+    button.className = "reaction-cell";
+    button.type = "button";
+    button.dataset.index = String(index);
+    button.disabled = !state.reactionRunning;
+    button.setAttribute("aria-label", `マス ${index + 1}`);
+    if (state.reactionLitIndex === index) button.classList.add("lit");
+    button.addEventListener("click", () => pressReactionCell(index, button));
+    els.reactionBoard.append(button);
+  }
+}
+
+function pressReactionCell(index, button) {
+  if (!state.reactionRunning) return;
+  if (state.reactionWaiting || state.reactionLitIndex === -1 || index !== state.reactionLitIndex) {
+    button.classList.remove("miss");
+    void button.offsetWidth;
+    button.classList.add("miss");
+    playWrongSound();
+    return;
+  }
+
+  const reactionMs = performance.now() - state.reactionCueAt;
+  state.reactionTotalMs += reactionMs;
+  state.reactionRound += 1;
+  state.reactionLitIndex = -1;
+  renderReactionLabels();
+  renderReactionBoard();
+  if (state.reactionRound >= REACTION_ROUNDS) {
+    finishReactionGame();
+  } else {
+    queueReactionCue();
+  }
+}
+
+function finishReactionGame() {
+  clearTimeout(state.reactionTimer);
+  state.reactionRunning = false;
+  state.reactionWaiting = false;
+  const averageSeconds = Math.max(0.1, Math.round((state.reactionTotalMs / REACTION_ROUNDS) / 100) / 10);
+  const previous = bestReactionRecord(state.data.currentPlayerId);
+  const isNewRecord = !previous || averageSeconds < previous.seconds;
+  const record = {
+    id: createId(),
+    playerId: state.data.currentPlayerId,
+    playerName: currentPlayer().name,
+    levelId: "reaction-tap",
+    mode: "reaction",
+    score: REACTION_ROUNDS,
+    seconds: averageSeconds,
+    createdAt: new Date().toISOString(),
+  };
+  state.data.records.push(record);
+  saveData();
+  els.startReactionButton.disabled = false;
+  els.startReactionButton.textContent = "もういちど";
+  renderReactionLabels();
+  renderReactionBoard();
+  renderReactionResult(averageSeconds, isNewRecord, previous);
+  renderRanking();
+  if (isNewRecord) celebrate();
+}
+
+function renderReactionLabels() {
+  const player = currentPlayer();
+  const best = bestReactionRecord(state.data.currentPlayerId);
+  els.reactionPlayerLabel.textContent = `${player ? player.name : ""} / ベスト ${best ? formatSeconds(best.seconds) : "まだ記録なし"}`;
+  els.reactionRoundLabel.textContent = `${state.reactionRound} / ${REACTION_ROUNDS}`;
+  const average = state.reactionRound > 0 ? state.reactionTotalMs / state.reactionRound / 1000 : 0;
+  els.reactionTimerDisplay.textContent = `平均 ${formatSeconds(Math.round(average * 10) / 10)}`;
+}
+
+function renderReactionIntro() {
+  const best = bestReactionRecord(state.data.currentPlayerId);
+  els.reactionResultPanel.innerHTML = `
+    <h3>${best ? "ベストタイム" : "あそび方"}</h3>
+    <p>${
+      best
+        ? `${currentPlayer().name}のベスト平均は ${formatSeconds(best.seconds)} です。光ったマスだけをすばやく押そう。`
+        : "光ったマスをできるだけ早く押します。10回の平均タイムを記録します。"
+    }</p>
+  `;
+}
+
+function renderReactionResult(seconds, isNewRecord, previous) {
+  els.reactionResultPanel.innerHTML = `
+    <h3>${isNewRecord ? "New Record!" : "ゴール！"}</h3>
+    <p>平均 ${formatSeconds(seconds)}。${isNewRecord ? "自分のベストを更新しました。" : `ベスト平均は ${formatSeconds(previous.seconds)} です。`}</p>
+  `;
+}
+
 function renderResult(score, seconds, isNewRecord) {
   els.resultPlayer.textContent = `${currentPlayer().name} / ${state.currentLevel.title} / ${modeLabel(state.mode)}`;
   els.resultTitle.textContent = isNewRecord ? "New Record!" : "できた！";
@@ -1006,6 +1342,18 @@ function bestRecord(levelId, mode, playerId) {
     .sort(compareRecords)[0];
 }
 
+function bestVisionRecord(playerId) {
+  return state.data.records
+    .filter((record) => record.levelId === "vision-grid" && record.mode === "vision" && record.playerId === playerId)
+    .sort((a, b) => a.seconds - b.seconds)[0];
+}
+
+function bestReactionRecord(playerId) {
+  return state.data.records
+    .filter((record) => record.levelId === "reaction-tap" && record.mode === "reaction" && record.playerId === playerId)
+    .sort((a, b) => a.seconds - b.seconds)[0];
+}
+
 function compareRecords(a, b) {
   if (b.score !== a.score) return b.score - a.score;
   return a.seconds - b.seconds;
@@ -1016,7 +1364,7 @@ function renderRanking() {
   const recordsByPlayer = new Map();
   state.data.records
     .filter((record) => record.levelId === levelId && record.mode === mode)
-    .sort(compareRecords)
+    .sort(["vision", "reaction"].includes(mode) ? (a, b) => a.seconds - b.seconds : compareRecords)
     .forEach((record) => {
       if (!recordsByPlayer.has(record.playerId)) recordsByPlayer.set(record.playerId, record);
     });
@@ -1035,7 +1383,7 @@ function renderRanking() {
         <strong>${record.playerName}</strong>
         <p>${new Date(record.createdAt).toLocaleDateString("ja-JP")}</p>
       </div>
-      <span class="rank-score">${record.score}/10・${formatTime(record.seconds)}</span>
+      <span class="rank-score">${["vision", "reaction"].includes(mode) ? formatSeconds(record.seconds) : `${record.score}/10・${formatTime(record.seconds)}`}</span>
     `;
     els.rankingList.append(row);
   });
@@ -1067,10 +1415,31 @@ function updateTimer() {
 }
 
 function showScreen(name) {
+  if (name !== "quiz") clearInterval(state.timer);
+  if (name !== "vision") {
+    clearInterval(state.visionTimer);
+    state.visionRunning = false;
+  }
+  if (name !== "reaction") {
+    clearTimeout(state.reactionTimer);
+    state.reactionRunning = false;
+    state.reactionWaiting = false;
+  }
   Object.entries(screens).forEach(([key, screen]) => {
     screen.classList.toggle("active", key === name);
   });
   document.body.classList.toggle("quiz-active", name === "quiz");
+  const labels = {
+    home: ["まなびトレーニング", "きょうのチャレンジ"],
+    mathHome: ["1・2年生のさんすう", "さんすう10もんチャレンジ"],
+    vision: ["数字タップ", "1から25チャレンジ"],
+    reaction: ["反射タップ", "光ったマスをタップ"],
+    quiz: ["1・2年生のさんすう", "さんすう10もんチャレンジ"],
+    result: ["1・2年生のさんすう", "できた！"],
+    ranking: ["きろく", "ランキング"],
+  };
+  els.topEyebrow.textContent = labels[name][0];
+  els.topTitle.textContent = labels[name][1];
   if (name === "ranking") renderRanking();
 }
 
@@ -1151,6 +1520,19 @@ function modeLabel(mode) {
 function formatTime(seconds) {
   if (seconds < 60) return `${seconds}秒`;
   return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+}
+
+function formatSeconds(seconds) {
+  return `${Number(seconds).toFixed(1)}秒`;
+}
+
+function shuffle(items) {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 function createId() {

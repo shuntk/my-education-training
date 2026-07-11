@@ -1,6 +1,6 @@
 {
-  "name": "さんすう10もんチャレンジ",
-  "short_name": "さんすう10",
+  "name": "まなびトレーニング",
+  "short_name": "まなびトレ",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#fff8e6",
